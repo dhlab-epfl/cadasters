@@ -27,7 +27,10 @@ parser.add_argument('-out', '--output_path', help='Output directory for results 
                     default='../outputs')
 parser.add_argument('-c', '--classifier', type=str, help='filename of fitted classifier',
                     default='data/svm_classifier.pkl')
-parser.add_argument('-p', '--plot', type=bool, help='Show plots', default=True)
+parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean)', default=True)
+parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
+                    'SLIC algorithm using a percentage of the total number of pixels. '
+                    'Give a percentage between 0 and 1', default=0.01)
 
 args = parser.parse_args()
 
@@ -41,7 +44,7 @@ show_plots = args.plot
 # ----- PARAMETERS THAT MAY BE CHANGED (recommended not to change much) ----
 similarity_method = 'cie2000'
 stop_criterion = 0.3
-params_slic = {'percent': 0.01, 'numCompact': 25, 'sigma': 2,
+params_slic = {'percent': args.sp_percent, 'numCompact': 25, 'sigma': 2,
                'mode': 'RGB'}
 # ---------------------------
 
