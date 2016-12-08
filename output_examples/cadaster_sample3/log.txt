@@ -1,0 +1,14 @@
+Date of log creation : 08.12.2016 at 17:07 
+Time elapsed to process image : 03:42:38
+
+---- Image  -----
+Filename : ../data_cadasters/cadaster_sample3.jpg, size : 1744x2242 
+---- Superpixels ----
+ Params : {'numCompact': 25, 'percent': 0.01, 'sigma': 2, 'mode': 'RGB'}
+---- Features ----
+['Lab', 'laplacian', 'frangi'] 
+ ---- Merging ---- 
+Similarity method : cie2000
+Stop criterion : 0.3
+---- Classification ----
+Classifier file: ../data_cadasters/classifer.pkl

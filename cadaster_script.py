@@ -73,42 +73,16 @@ original_segments = compute_slic(bgr2rgb(img_filt), params_slic)
 print('** FEATURE EXTRACTION')
 # ------------------
 list_dict_features = ['Lab', 'laplacian', 'frangi']
-
-savefile_feats = os.path.join(output_path, 'tmp_feats.pkl')
-if os.path.isfile(savefile_feats):
-    with open(savefile_feats, 'rb') as handle:
-        dict_features = pickle.load(handle)
-else:
-    dict_features = features_extraction(img_filt, list_dict_features)
-    # **** saving for improved speed (when crash)
-    with open(savefile_feats, 'wb') as handle:
-        pickle.dump(dict_features, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # ***
+dict_features = features_extraction(img_filt, list_dict_features)
 
 # GRAPHS AND MERGING
 print('** GRAPHS AND MERGING')
 # ------------------
+# Create G graph
+G = nx.Graph()
+nsegments = original_segments.copy()
 
-savefile_graph = os.path.join(output_path, 'tmp_graph.pkl')
-savefile_nsegments = os.path.join(output_path, 'tmp_nsegments.pkl')
-if os.path.isfile(savefile_graph):
-    with open(savefile_graph, 'rb') as handle:
-        G = pickle.load(handle)
-    with open(savefile_nsegments, 'rb') as handle:
-        nsegments = pickle.load(handle)
-else:
-    # Create G graph
-    G = nx.Graph()
-    nsegments = original_segments.copy()
-
-    G = edge_cut_minimize_std(G, nsegments, dict_features, similarity_method, mst=True, stop_std_val=stop_criterion)
-    # **** saving for improved speed (when crash)
-    with open(savefile_graph, 'wb') as handle:
-        pickle.dump(G, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(savefile_nsegments, 'wb') as handle:
-        pickle.dump(nsegments, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # ***
-
+G = edge_cut_minimize_std(G, nsegments, dict_features, similarity_method, mst=True, stop_std_val=stop_criterion)
 
 # Keep track of correspondences between 'original superpiels' and merged ones
 dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
@@ -150,23 +124,8 @@ bg_nodes_nsp = [tn for tn in bg_nodes_class if 'n_superpix' in G.node[tn]
 # Find parcels and export polygons in geoJSON format
 ksize_flooding = 2
 
-savefile_listpoly = os.path.join(output_path, 'tmp_listpoly.pkl')
-savefile_dicpoly = os.path.join(output_path, 'tmp_dicpoly.pkl')
-if os.path.isfile(savefile_listpoly):
-    with open(savefile_listpoly, 'rb') as handle:
-        listFeatPolygon = pickle.load(handle)
-    with open(savefile_dicpoly, 'rb') as handle:
-        dic_polygon = pickle.load(handle)
-
-else:
-    listFeatPolygon, dic_polygon = find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
+listFeatPolygon, dic_polygon = find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
                                                 ksize_flooding)
-    # **** saving for improved speed (when crash)
-    with open(savefile_listpoly, 'wb') as handle:
-        pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(savefile_dicpoly, 'wb') as handle:
-        pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    # ***
 
 # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
 #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
@@ -289,6 +248,7 @@ if show_plots:
     namefile_class = os.path.join(output_path, 'predicted3class.jpg')
     show_class(nsegments, G, namefile_class)
 
+
 # BOUNDING BOXES
 print('** BOUNDING BOXES')
 # ---------------
@@ -316,12 +276,6 @@ for tn in text_nodes:
 # ----------
 box_id = 0
 listBox = find_text_boxes(Tgraph, original_segments)
-
-if show_plots:
-    # Show all bounding boxes
-    img_box = img_filt.copy()
-    filename_box = os.path.join(output_path, 'box_img.jpg')
-    show_boxes(img_box, listBox, (255, 0, 0), filename_box)
 
 
 reference_boxes = copy.deepcopy(listBox)
@@ -446,8 +400,9 @@ for box in final_boxes:
     with open(filename_json, 'w') as fjson:
         json.dump(data, fjson)
 
-
+# LOG FILE
 print('** LOG FILE')
+# ---------
 # Write Log file
 elapsed_time = time.time() - t0
 log_filename = os.path.join(output_path, 'log.txt')
