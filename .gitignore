@@ -1,0 +1,9 @@
+__pycache__/
+/__pycache__/
+.cpython
+.ipynb_checkpoints/
+.pyc
+.DS_Store
+.idea
+not_released/
+x_archiv/
