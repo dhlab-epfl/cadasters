@@ -10,6 +10,27 @@ The repo is organized as follows :
 * __cadaster_script.py__ can be launched with command line
 * __demo_cadaster_segmentation.ipynb__ allows to play with the parameters
 
+### Outputs
+__cropped_polygons__ folder : cropped images of extracted polygons
+
+__digits__ folder : cropped images of digits (binary and original) and json file with the predicted number and its confidence
+
+__Box__ : shows detected labels
+
+__log__ : summary of the processing (parameters used, time for computing, ...)
+
+__geojson__ : coordinates (in the image referential) of the extracted polygons for further integration in web service with geographic coordinates
+
+__polygons__ : shows extracted regions
+
+__prediction class__ : shows how the segments have been classified (3 classes)
+
+__ridge image__ : shows the result of the processing of ridge detection image, this is the input of the flooding algorithm
+
+__merged superpixels__ : shows the result of the merging process (better over-segmented than under-segmented, some corrections are applied later)
+
+
+
 ### Dependencies
 * networkx 
 * geojson
