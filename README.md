@@ -10,6 +10,10 @@ The repo is organized as follows :
 * __cadaster_script.py__ can be launched with command line
 * __demo_cadaster_segmentation.ipynb__ allows to play with the parameters
 
+### Usage
+* Python Notebook : Run with the given parameters/inputs or try your owns.
+* Script : run `python cadaster_script.py -im data/image_cadasters/cadaster_sample1.jpg`
+
 ### Outputs
 __cropped_polygons__ folder : cropped images of extracted polygons
 
