@@ -34,7 +34,6 @@ __ridge image__ : shows the result of the processing of ridge detection image, t
 __merged superpixels__ : shows the result of the merging process (better over-segmented than under-segmented, some corrections are applied later)
 
 
-
 ### Dependencies
 * networkx 
 * geojson
