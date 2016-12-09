@@ -51,6 +51,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
     filename_classifier = 'data/svm_classifier.pkl'
 
+    # Create output folder if it does not exist
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
     # Time process
     t0 = time.time()
