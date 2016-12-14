@@ -1,5 +1,5 @@
 # Cadasters segmentation
-Demo for PDM work on venitian cadaster segmentation
+Demo for venitian cadaster segmentation
 
 This code is a demo for the segmentation of the venitian cadaster. It is a work in progress and is not optimized. Comments and suggestions are welcome.
 
