@@ -430,8 +430,9 @@ if __name__ == '__main__':
                         default='data/svm_classifier.pkl')
     parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean)', default=True)
     parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
-                                                                'SLIC algorithm using a percentage of the total number of pixels. '
-                                                                'Give a percentage between 0 and 1', default=0.01)
+                                                                'SLIC algorithm using a percentage of the total number '
+                                                                'of pixels. Give a percentage between 0 and 1',
+                        default=0.01)
     args = parser.parse_args()
 
     # Directory and files paths
