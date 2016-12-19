@@ -7,6 +7,7 @@ import copy
 import networkx as nx
 import json
 import time
+import argparse
 from preprocessing import image_filtering, features_extraction
 from segmentation import compute_slic
 from helpers import show_superpixels, show_polygons, show_class, show_boxes, \
@@ -416,3 +417,33 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                    similarity_method=similarity_method, stop_criterion=stop_criterion)
 
     print('Cadaster image processed with success!')
+# ----------------------------------------------------------------------------------------
+
+
+if __name__ == '__main__':
+    # Parsing
+    parser = argparse.ArgumentParser(description='Cadaster segmentation process')
+    parser.add_argument('-im', '--cadaster_img', help="filename of the cadaster image", type=str)
+    parser.add_argument('-out', '--output_path', help='Output directory for results and plots', type=str,
+                        default='../outputs')
+    parser.add_argument('-c', '--classifier', type=str, help='filename of fitted classifier',
+                        default='data/svm_classifier.pkl')
+    parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean)', default=True)
+    parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
+                                                                'SLIC algorithm using a percentage of the total number of pixels. '
+                                                                'Give a percentage between 0 and 1', default=0.01)
+    args = parser.parse_args()
+
+    # Directory and files paths
+    output_path = args.output_path
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    filename_classifier = args.classifier
+
+    # Params merging and slic
+    params_merge = {'similarity_method': 'cie2000', 'stop_criterion': 0.3}
+    params_slic = {'percent': args.sp_percent, 'numCompact': 25, 'sigma': 2,
+                   'mode': 'RGB'}
+
+    # Launch segmentation
+    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot)
