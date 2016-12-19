@@ -1,7 +1,7 @@
 # Cadasters segmentation
-Demo for PDM work on venitian cadaster segmentation
+Demo for venitian cadaster segmentation
 
-This code is a demo for the segmentation of the venitian cadaster. It is a work in progress and is not optimized at all. Comments and suggestions are welcome.
+This code is a demo for the segmentation of the venitian cadaster. It is a work in progress and is not optimized. Comments and suggestions are welcome.
 
 ### Organization
 The repo is organized as follows :
@@ -33,6 +33,8 @@ __ridge image__ : shows the result of the processing of ridge detection image, t
 
 __merged superpixels__ : shows the result of the merging process (better over-segmented than under-segmented, some corrections are applied later)
 
+### Requirement
+* Python 3.5
 
 ### Dependencies
 * networkx 
