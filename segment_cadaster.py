@@ -425,7 +425,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
     parser.add_argument('-im', '--cadaster_img', help="filename of the cadaster image", type=str)
     parser.add_argument('-out', '--output_path', help='Output directory for results and plots', type=str,
-                        default='../outputs')
+                        default='outputs')
     parser.add_argument('-c', '--classifier', type=str, help='filename of fitted classifier',
                         default='data/svm_classifier.pkl')
     parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean)', default=True)
