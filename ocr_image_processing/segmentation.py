@@ -9,7 +9,7 @@ def segment_number_inner(img, gradient_factor=4):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (gradient_factor, gradient_factor))
     img = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, kernel)
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4,4))
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
 
     img_contours = np.copy(img)
     img_contours, contours, hierarchy = cv2.findContours(img_contours, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

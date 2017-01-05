@@ -21,7 +21,7 @@ from text import find_text_boxes, find_false_box, \
 from ocr import recognize_number
 
 
-def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, show_plots=True):
+def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, show_plots=True, evaluation=False):
     """
     Launches the segmentation of the cadaster image and outputs
 
@@ -44,6 +44,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                                         dissimilar vertices. When value < stop_criterion, the elements of the subgraph
                                         can be merged together to form an homogeneous region.
     :param show_plots: Boolean. To save intermediate plots of polygons and boxes (default=True)
+    :param evaluation: Boolean. To evaluate the results (parcel extraction and digit recognition). A ground truth must
+                        exist in data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
     """
 
     stop_criterion = params_merge['stop_criterion']
@@ -138,6 +140,11 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
     #       the small one is on top and is accessible by clicking
+
+    # Save polygons coordinates for evaluation
+    if evaluation:
+        with open('dic_polygons.pkl', 'wb') as handle:
+            pickle._dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
@@ -374,11 +381,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Recrop image
         final_digit_bin, (y, x, h, w) = crop_object(rotated_img)
-        final_digit_bin = final_digit_bin > 1  # >>>>> NOT SURE USEFUL
+        # final_digit_bin = final_digit_bin > 1  # >>>>> NOT SURE USEFUL
+        # Morphology _ erosion
+        # final_digit_bin = cv2.erode(final_digit_bin, np.ones((5, 5), np.uint8))
 
         # Format image to be saved into 3 channel uint8
-        final_digit_bin = np.uint8(255 * final_digit_bin)
-        formated_digit_img = np.dstack([final_digit_bin] * 3)
+        # final_digit_bin = np.uint8(255 * final_digit_bin)
+        # formated_digit_img = np.dstack([final_digit_bin] * 3)
 
         # Rotate original image
         rotated_number = rotate_image(padding(cropped_number, 255), angle)
@@ -386,7 +395,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Save cropped image
         if show_plots:
-            cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
+            # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
             cv2.imwrite(os.path.join(path_digits, '{}_original.jpg'.format(box.box_id)), rotated_number)
 
         # RECOGNIZING NUMBERS
@@ -433,12 +442,15 @@ if __name__ == '__main__':
                                                                 'SLIC algorithm using a percentage of the total number '
                                                                 'of pixels. Give a percentage between 0 and 1',
                         default=0.01)
+    parser.add_argument('-ev', '--evaluation', type=bool, help='To enable evaluation of parcels extraction and digit '
+                                                               'segmentation (only possible if a ground-truth is '
+                                                               'available in folder data/data_evaluation)',
+                        default=False)
+
     args = parser.parse_args()
 
     # Directory and files paths
     output_path = args.output_path
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
     filename_classifier = args.classifier
 
     # Params merging and slic
@@ -447,4 +459,5 @@ if __name__ == '__main__':
                    'mode': 'RGB'}
 
     # Launch segmentation
-    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot)
+    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot,
+                     evaluation=args.evaluation)
