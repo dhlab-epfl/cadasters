@@ -31,12 +31,15 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
         binary_image_bg = np.zeros(merged_segments.shape, 'uint8')
         binary_image_bg[merged_segments == bgn] = 1
 
-        # Find contours of text group
-        i, contours, h = cv2.findContours(binary_image_bg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Find contours
+        i, contours, h = cv2.findContours(binary_image_bg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
 
         # Fit polygon
         epsilon = 3
-        poly = cv2.approxPolyDP(contours[0], epsilon, closed=True)
+        poly = list()
+        for c in contours:
+            poly.append(cv2.approxPolyDP(c, epsilon, closed=True))
+        # poly = cv2.approxPolyDP(contours[0], epsilon, closed=True)
 
         # Flooding of area to get fitted polygon
         parcel = Polygon2geoJSON(poly, listFeatPolygon, bgn, ridges, ksize_kernel_flooding)

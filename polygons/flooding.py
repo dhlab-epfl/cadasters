@@ -138,17 +138,25 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
             aprox_parcel = cv2.erode(aprox_parcel, kernel_concav, iterations=1)
 
             # Make a polygon of it
-            tmp, cnt, tmp = cv2.findContours(aprox_parcel.copy(), cv2.RETR_EXTERNAL,
+            tmp, cnt, tmp = cv2.findContours(aprox_parcel.copy(), cv2.RETR_CCOMP,
                                              cv2.CHAIN_APPROX_SIMPLE)
-            aprox_parcel = cv2.approxPolyDP(cnt[0], 5, True)
-            aprox_parcel = aprox_parcel + [offset, offset]
+            aprox_parcel = list()
+            for c in cnt:
+                poly = cv2.approxPolyDP(c, 5, True)
+                poly = poly + [offset, offset]
+                aprox_parcel.append(poly)
+            # aprox_parcel = cv2.approxPolyDP(cnt[0], 5, True)
+            # aprox_parcel = aprox_parcel + [offset, offset]
 
             # Generate uuid
             uid = str(uuid.uuid4())
             parcels.append((uid, aprox_parcel))
 
             # Transform polygon aproxParcel to geoJSON Polygon format
-            poly_points = [(float(pt[0, 0]), float(pt[0, 1])) for pt in aprox_parcel]
+            poly_points = list()
+            for c in aprox_parcel:
+                poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
+            # poly_points = [(float(pt[0, 0]), float(pt[0, 1])) for pt in aprox_parcel]
             myFeaturePoly = Feature(geometry=Polygon([poly_points]),
                                     properties={"uuid": uid, "node": str(node_graph)})
             listFeatPolygon.append(myFeaturePoly)
