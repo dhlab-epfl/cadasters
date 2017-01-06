@@ -96,7 +96,7 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
     mask = np.uint8(mask)
 
     parcels = list()
-    img2flood = img_frangi.copy()
+    img2flood = img_frangi
     kernel_concav = np.ones((11, 11), np.uint8)
 
     # Find size of optimal kernel

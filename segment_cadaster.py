@@ -239,14 +239,14 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     for bg_nodes, list_tuple in dic_polygon.items():
         for uid, poly in list_tuple:
             mask_polygon_to_fill = np.zeros(polygons_labels.shape, 'uint8')
-            cv2.fillPoly(mask_polygon_to_fill, [poly], 255)
+            cv2.fillPoly(mask_polygon_to_fill, poly, 255)
             polygons_labels[mask_polygon_to_fill > 0] = bg_nodes
             # >>>>>>>> HERE USE UUID AS LABEL
             # polygons_labels[mask_polygon_to_fill > 0] = uid.int # then do uuid.UUID(int=label) to find uuid
 
             if show_plots:
                 # Crop polygon image and save it
-                cropped_polygon_image = crop_polygon(img_filt, [poly])
+                cropped_polygon_image = crop_polygon(img_filt, poly)
                 filename_cropped_polygon = os.path.join(crop_poly_dirpath, '{}.jpg'.format(uid))
                 cv2.imwrite(filename_cropped_polygon, cropped_polygon_image)
 

@@ -65,17 +65,10 @@ def show_polygons(image, dic_polygon, color, filename):
     """
     img_pol = image.copy()
     for nod, list_tup in dic_polygon.items():
-        for poly in list_tup[1]:
-            cv2.fillPoly(img_pol, poly, color)
+        for tup in list_tup:
+            cv2.fillPoly(img_pol, tup[1], color)
 
     cv2.imwrite(filename, img_pol)
-
-    # img_pol = image.copy()
-    # for nod, list_tup in dic_polygon.items():
-    #     for tup in list_tup:
-    #         cv2.fillPoly(img_pol, [tup[1]], color)
-    #
-    # cv2.imwrite(filename, img_pol)
 # ------------------------------------------------------------------------
 
 
