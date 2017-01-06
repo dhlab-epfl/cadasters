@@ -21,7 +21,8 @@ from text import find_text_boxes, find_false_box, \
 from ocr import recognize_number
 
 
-def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, show_plots=True, evaluation=False):
+def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge,
+                     show_plots=True, evaluation=False, debug=False):
     """
     Launches the segmentation of the cadaster image and outputs
 
@@ -46,6 +47,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     :param show_plots: Boolean. To save intermediate plots of polygons and boxes (default=True)
     :param evaluation: Boolean. To evaluate the results (parcel extraction and digit recognition). A ground truth must
                         exist in data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
+    :param debug: Boolean. Saves the graph and useful variable after each step to ease debug.
     """
 
     stop_criterion = params_merge['stop_criterion']
@@ -58,6 +60,11 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    debug_folder = os.path.join(output_path, 'debug_files')
+    if debug:
+        if not os.path.exists(debug_folder):
+            os.makedirs(debug_folder)
+
     # Time process
     t0 = time.time()
 
@@ -69,30 +76,70 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     except AttributeError:
         sys.exit("Image not loaded correctly or not found")
 
+    #
     # FILTERING
+    #
     print('** FILTERING')
     # ---------
     img_filt = image_filtering(img)
 
+    #
     # SLIC
+    #
     print('** SLIC')
     # -----
     original_segments = compute_slic(bgr2rgb(img_filt), params_slic)
 
+    #
     # FEATURE EXTRACTION
+    #
     print('** FEATURE EXTRACTION')
     # ------------------
     list_dict_features = ['Lab', 'laplacian', 'frangi']
-    dict_features = features_extraction(img_filt, list_dict_features)
 
+    # Saving for debug proposes
+    savefile_feats = os.path.join(debug_folder, 'feats.pkl')
+    try:
+
+        with open(savefile_feats, 'rb') as handle:
+            dict_features = pickle.load(handle)
+        print('{} file loaded'.format(os.path.split(savefile_feats)[-1]))
+
+    except FileNotFoundError:
+
+        dict_features = features_extraction(img_filt, list_dict_features)
+        if debug:
+            with open(savefile_feats, 'wb') as handle:
+                pickle.dump(dict_features, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    #
     # GRAPHS AND MERGING
+    #
     print('** GRAPHS AND MERGING')
     # ------------------
-    # Create G graph
-    G = nx.Graph()
-    nsegments = original_segments.copy()
 
-    G = edge_cut_minimize_std(G, nsegments, dict_features, similarity_method, mst=True, stop_std_val=stop_criterion)
+    savefile_graph = os.path.join(debug_folder, 'graph.pkl')
+    savefile_nsegments = os.path.join(debug_folder, 'nsegments.pkl')
+    try:
+        with open(savefile_graph, 'rb') as handle:
+            G = pickle.load(handle)
+        with open(savefile_nsegments, 'rb') as handle:
+            nsegments = pickle.load(handle)
+        print('{} and {} files loaded'.format(os.path.split(savefile_graph)[-1],
+                                              os.path.split(savefile_nsegments)[-1]))
+
+    except FileNotFoundError:
+        # Create G graph
+        G = nx.Graph()
+        nsegments = original_segments.copy()
+
+        G = edge_cut_minimize_std(G, nsegments, dict_features, similarity_method, mst=True, stop_std_val=stop_criterion)
+
+        if debug:
+            with open(savefile_graph, 'wb') as handle:
+                pickle.dump(G, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(savefile_nsegments, 'wb') as handle:
+                pickle.dump(nsegments, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Keep track of correspondences between 'original superpiels' and merged ones
     dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
@@ -102,7 +149,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         namefile = os.path.join(output_path, 'sp_merged.jpg')
         show_superpixels(img_filt, nsegments, namefile)
 
+    #
     # CLASSIFICATION
+    #
     print('** CLASSIFICATION')
     # ---------------
     # Labels : 0 = Background, 1 = Text, 2 = Contours
@@ -119,8 +168,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     node_classifier(G, dict_features, list_features_learning, nsegments,
                     clf, normalize_method=clf_params['normalize_method'])
 
-
+    #
     # PARCELS AND POLYGONS
+    #
     print('** PARCELS AND POLYGONS')
     # --------------------
     min_size_region = 3  # Regions should be formed at least of min_size_region merged original superpixels
@@ -134,8 +184,24 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # Find parcels and export polygons in geoJSON format
     ksize_flooding = 2
 
-    listFeatPolygon, dic_polygon = find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
+    savefile_listpoly = os.path.join(debug_folder, 'listpoly.pkl')
+    savefile_dicpoly = os.path.join(debug_folder, 'dicpoly.pkl')
+    try:
+        with open(savefile_listpoly, 'rb') as handle:
+            listFeatPolygon = pickle.load(handle)
+        with open(savefile_dicpoly, 'rb') as handle:
+            dic_polygon = pickle.load(handle)
+        print('{} and {} files loaded'.format(os.path.split(savefile_listpoly)[-1],
+                                              os.path.split(savefile_dicpoly)[-1]))
+
+    except FileNotFoundError:
+        listFeatPolygon, dic_polygon = find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
                                                 ksize_flooding)
+        if debug:
+            with open(savefile_listpoly, 'wb') as handle:
+                pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(savefile_dicpoly, 'wb') as handle:
+                pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
@@ -143,8 +209,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
     # Save polygons coordinates for evaluation
     if evaluation:
-        with open('dic_polygons.pkl', 'wb') as handle:
-            pickle._dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        namefile = os.path.join(output_path, 'dic_polygons.pkl')
+        with open(namefile, 'wb') as handle:
+            pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
@@ -183,8 +250,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                 filename_cropped_polygon = os.path.join(crop_poly_dirpath, '{}.jpg'.format(uid))
                 cv2.imwrite(filename_cropped_polygon, cropped_polygon_image)
 
-
+    #
     # TEXT PIXELS
+    #
     print('** TEXT PIXELS')
     # ------------
 
@@ -202,7 +270,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     mask_text_erode = cv2.morphologyEx(mask_text_erode, cv2.MORPH_OPEN, kernel)
     text *= (mask_text_erode > 0)
 
-
+    #
     # CORRECTION OF TEXT SP USING POLYGONS INFORMATION
     # ------------------------------------------------
     # We use the fact that a text zone (label or street name) is generally inside a parcel. So we enlarge the
@@ -238,7 +306,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     attr_lbl_poly = {tn: most_common_label(polygons_labels[original_segments == tn]) for tn in text_node_id}
     nx.set_node_attributes(G, 'lbl_poly', attr_lbl_poly)
 
-
+    #
     # CLASSIFICATION OF LEFT UNCLASSIFIED NODES
     # -----------------------------------------
     # Get class attribute from every node
@@ -263,7 +331,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         namefile_class = os.path.join(output_path, 'predicted3class.jpg')
         show_class(nsegments, G, namefile_class)
 
+    #
     # BOUNDING BOXES
+    #
     print('** BOUNDING BOXES')
     # ---------------
 
@@ -339,8 +409,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
         show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
 
-
+    #
     # PROCESS BOX (ROTATE, ...) AND SAVE IT
+    #
     print('** PROCESS BOX')
     # -------------------------------------
     # Create directory to save digits image
@@ -414,7 +485,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(filename_json, 'w') as fjson:
             json.dump(data, fjson)
 
+    #
     # LOG FILE
+    #
     print('** LOG FILE')
     # ---------
     # Write Log file
@@ -446,6 +519,7 @@ if __name__ == '__main__':
                                                                'segmentation (only possible if a ground-truth is '
                                                                'available in folder data/data_evaluation)',
                         default=False)
+    parser.add_argument('-d', '--debug', type=bool, help='Debug flag. 1 to activate', default=False)
 
     args = parser.parse_args()
 
@@ -460,4 +534,4 @@ if __name__ == '__main__':
 
     # Launch segmentation
     segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot,
-                     evaluation=args.evaluation)
+                     evaluation=args.evaluation, debug=args.debug)

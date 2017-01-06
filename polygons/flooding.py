@@ -95,7 +95,6 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
     mask = np.r_[[np.ones(mask.shape[1])], mask, [np.ones(mask.shape[1])]]
     mask = np.uint8(mask)
 
-
     parcels = list()
     img2flood = img_frangi.copy()
     kernel_concav = np.ones((11, 11), np.uint8)
@@ -106,7 +105,7 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
 
     # SeedMask -> one point will be used as seed
     seedmask = np.zeros(img_frangi.shape)
-    cv2.fillPoly(seedmask, [polyCV2], 255)
+    cv2.fillPoly(seedmask, polyCV2, 255)
     # Erosion to make sure seed is strictly inside the region to flood (and not in the borders)
     seedmask = cv2.erode(seedmask, kernel)
 
@@ -114,21 +113,19 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
     while new_seed:
         # Find seed point. Should be != 0 in img_frangi
         found_seed = False
-        nonzero_points = np.transpose(np.nonzero(seedmask)) # possible seedpoints candidates
+        nonzero_points = np.transpose(np.nonzero(seedmask))  # possible seedpoints candidates
         for pt in nonzero_points:
-            seed_point = tuple(pt)
             # Check if it is a BG region and if it has not already been flooded
-            if img2flood[seed_point] == 0:
-                if mask[seed_point[0]+1, seed_point[1]+1] == 0: # (remember mask has been padded with 1 additional outside border)
-                    # Inverse column and row for opencv format
-                    seed_point = (seed_point[1], seed_point[0])
-                    found_seed = True
-                    break
+            if (img2flood[tuple(pt)] == 0) and (mask[pt[0]+1, pt[1]+1] == 0):  # (remember mask has been padded with 1 additional outside border)
+                # Inverse column and row for opencv format
+                seed_point = (pt[1], pt[0])
+                found_seed = True
+                break
 
         if found_seed:
             # Keep track of the previous image flooded (to compute difference later)
             prev_imgflood = img2flood.copy()
-            tmp = cv2.floodFill(img2flood, mask, seed_point, 128)
+            tmp = cv2.floodFill(img2flood, mask, seed_point, 128)  # mask is not filled, only img2flood
 
             # Get the flooded zone
             flooded_zone = np.absolute(img2flood - prev_imgflood)

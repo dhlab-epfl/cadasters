@@ -44,7 +44,6 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
         # Flooding of area to get fitted polygon
         parcel = Polygon2geoJSON(poly, listFeatPolygon, bgn, ridges, ksize_kernel_flooding)
 
-
         # G.node[bgn]['polygon'] = parcel
         dic_polygon[bgn] = parcel
 

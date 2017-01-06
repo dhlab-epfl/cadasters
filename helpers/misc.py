@@ -18,6 +18,7 @@ def most_common_label(labels):
             return elem
 
     return counts[0][0]
+# --------------------------------------
 
 
 def find_pattern(array, pattern):
@@ -48,6 +49,7 @@ def find_pattern(array, pattern):
         nrepetitions += 1
 
     return nrepetitions
+# --------------------------------------
 
 
 def add_list_to_list(list1, list2add):

@@ -21,6 +21,7 @@ def rgb2gray(img, channel_order= 'RGB'):
 
     gray = 0.2989*R + 0.5870*G + 0.1140*B
     return gray
+# --------------------------------------
 
 
 def bgr2rgb(img_bgr):
@@ -36,6 +37,7 @@ def bgr2rgb(img_bgr):
     img_rgb[:, :, 2] = tmp_im
 
     return img_rgb
+# --------------------------------------
 
 
 def merge_segments(list_segments, seg_to_merge, label):
@@ -61,6 +63,7 @@ def merge_segments(list_segments, seg_to_merge, label):
         seg_new_label = list_segments == s
         # Assign a new label to the segments
         list_segments[seg_new_label] = label
+# --------------------------------------
 
 
 def padding(image, value, npad=None):
@@ -89,6 +92,7 @@ def padding(image, value, npad=None):
         img_pad[npad:-npad, npad:-npad] = image
 
     return img_pad
+# --------------------------------------
 
 
 def rotate_image(image, angle):
