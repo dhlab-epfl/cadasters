@@ -39,7 +39,6 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
         poly = list()
         for c in contours:
             poly.append(cv2.approxPolyDP(c, epsilon, closed=True))
-        # poly = cv2.approxPolyDP(contours[0], epsilon, closed=True)
 
         # Flooding of area to get fitted polygon
         parcel = Polygon2geoJSON(poly, listFeatPolygon, bgn, ridges, ksize_kernel_flooding)

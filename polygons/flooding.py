@@ -97,7 +97,7 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
 
     parcels = list()
     img2flood = img_frangi
-    kernel_concav = np.ones((11, 11), np.uint8)
+    kernel_concav = np.ones((15, 15), np.uint8)
 
     # Find size of optimal kernel
     kernel = np.ones((3, 3), np.uint8)
@@ -142,8 +142,6 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
                 poly = cv2.approxPolyDP(c, 5, True)
                 poly = poly + [offset, offset]
                 aprox_parcel.append(poly)
-            # aprox_parcel = cv2.approxPolyDP(cnt[0], 5, True)
-            # aprox_parcel = aprox_parcel + [offset, offset]
 
             # Generate uuid
             uid = str(uuid.uuid4())
@@ -153,7 +151,7 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
             poly_points = list()
             for c in aprox_parcel:
                 poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
-            # poly_points = [(float(pt[0, 0]), float(pt[0, 1])) for pt in aprox_parcel]
+
             myFeaturePoly = Feature(geometry=Polygon([poly_points]),
                                     properties={"uuid": uid, "node": str(node_graph)})
             listFeatPolygon.append(myFeaturePoly)

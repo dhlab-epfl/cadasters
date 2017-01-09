@@ -15,7 +15,7 @@ from helpers import show_superpixels, show_polygons, show_class, show_boxes, \
     padding, rotate_image, write_log_file
 from graph import edge_cut_minimize_std, assign_feature_to_node, generate_vertices_and_edges
 from classification import node_classifier
-from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge
+from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, evalutation_parcel_iou
 from text import find_text_boxes, find_false_box, \
     group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object
 from ocr import recognize_number
@@ -207,11 +207,28 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
     #       the small one is on top and is accessible by clicking
 
-    # Save polygons coordinates for evaluation
     if evaluation:
+        # Save polygons coordinates for evaluation
         namefile = os.path.join(output_path, 'dic_polygons.pkl')
         with open(namefile, 'wb') as handle:
             pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # Evaluate
+        # Get filename
+        path_eval_split = os.path.split(filename_cadaster_img)
+        filename = '{}_labelled_gt.jpg'.format(path_eval_split[1].split('.')[0])
+        groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
+        # Open image and give a unique label to each parcel
+        image_parcels_gt = cv2.imread(groundtruth_parcels_filename)
+        image_parcels_gt = np.uint8(image_parcels_gt[:, :, 0] > 128) * 255
+        n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
+
+        # Evaluate
+        correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon, iou_thresh=0.7)
+        print('Number correct : {}/{}, percent : {}'.format(correct_poly, n_labels_poly - 1,
+                                                            correct_poly / (n_labels_poly - 1)))
+        print('Number incorrect : {}/{}, percent : {}'.format(incorrect_poly, correct_poly + incorrect_poly,
+                                                              incorrect_poly / (correct_poly + incorrect_poly)))
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
@@ -493,10 +510,17 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # Write Log file
     elapsed_time = time.time() - t0
     log_filename = os.path.join(output_path, 'log.txt')
-    write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
-                   classifier_filename=filename_classifier, size_image=img_filt.shape,
-                   params_slic=params_slic, list_dict_features=list_dict_features,
-                   similarity_method=similarity_method, stop_criterion=stop_criterion)
+    if evaluation:
+        write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
+                       classifier_filename=filename_classifier, size_image=img_filt.shape,
+                       params_slic=params_slic, list_dict_features=list_dict_features,
+                       similarity_method=similarity_method, stop_criterion=stop_criterion,
+                       correct_poly=correct_poly, incorrect_poly=incorrect_poly, total_poly=n_labels_poly-1)
+    else:
+        write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
+                       classifier_filename=filename_classifier, size_image=img_filt.shape,
+                       params_slic=params_slic, list_dict_features=list_dict_features,
+                       similarity_method=similarity_method, stop_criterion=stop_criterion)
 
     print('Cadaster image processed with success!')
 # ----------------------------------------------------------------------------------------

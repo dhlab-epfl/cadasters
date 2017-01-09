@@ -12,6 +12,10 @@ def write_log_file(filename, **kwargs):
     stop_criterion = kwargs.get('stop_criterion', None)
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
+    correct_poly = kwargs.get('correct_poly', None)
+    incorrect_poly = kwargs('incorrect_poly', None)
+    total_poly = kwargs('total_poly', None)
+
 
     minutes, seconds = divmod(np.float32(elapsed_time), 60)
     hours, minutes = divmod(minutes, 60)
@@ -36,5 +40,11 @@ def write_log_file(filename, **kwargs):
     log_file.write('Stop criterion : {}\n'.format(stop_criterion))
     log_file.write('---- Classification ----\n')
     log_file.write('Classifier file: {}\n'.format(classifier_filename))
+    log_file.write('---- Evaluation parcels ----\n')
+    log_file.write('Correct parcels (true positive rate) : {}/{} ({:.2f})\n'
+                   .format(correct_poly, total_poly, correct_poly/total_poly))
+    log_file.write('Incorrect parcels (false positive rate) : {}/{} ({:.2f})\n'
+                   .format(incorrect_poly, total_poly, incorrect_poly / (correct_poly+incorrect_poly)))
+
     # Close file
     log_file.close()
