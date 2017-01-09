@@ -225,10 +225,10 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Evaluate
         correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon, iou_thresh=0.7)
-        print('Number correct : {}/{}, percent : {}'.format(correct_poly, n_labels_poly - 1,
-                                                            correct_poly / (n_labels_poly - 1)))
-        print('Number incorrect : {}/{}, percent : {}'.format(incorrect_poly, correct_poly + incorrect_poly,
-                                                              incorrect_poly / (correct_poly + incorrect_poly)))
+        print('Number correct : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
+                                                                correct_poly / (n_labels_poly - 1)))
+        print('Number incorrect : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
+        print('Precision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')

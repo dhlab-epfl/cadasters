@@ -41,10 +41,10 @@ def write_log_file(filename, **kwargs):
     log_file.write('---- Classification ----\n')
     log_file.write('Classifier file: {}\n'.format(classifier_filename))
     log_file.write('---- Evaluation parcels ----\n')
-    log_file.write('Correct parcels (true positive rate) : {}/{} ({:.2f})\n'
-                   .format(correct_poly, total_poly, correct_poly/total_poly))
-    log_file.write('Incorrect parcels (false positive rate) : {}/{} ({:.2f})\n'
-                   .format(incorrect_poly, total_poly, incorrect_poly / (correct_poly+incorrect_poly)))
+    log_file.write('Correct parcels : {}/{}\n'.format(correct_poly, total_poly))
+    log_file.write('Incorrect parcels : {}/{} \n'.format(incorrect_poly, total_poly))
+    log_file.write('Precision : {:.02f}\n'.format(correct_poly/(correct_poly+incorrect_poly)))
+    log_file.write('Recall : {:.02f}\n'.format(correct_poly/total_poly))
 
     # Close file
     log_file.close()
