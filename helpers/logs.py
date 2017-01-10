@@ -13,9 +13,8 @@ def write_log_file(filename, **kwargs):
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
     correct_poly = kwargs.get('correct_poly', None)
-    incorrect_poly = kwargs('incorrect_poly', None)
-    total_poly = kwargs('total_poly', None)
-
+    incorrect_poly = kwargs.get('incorrect_poly', None)
+    total_poly = kwargs.get('total_poly', None)
 
     minutes, seconds = divmod(np.float32(elapsed_time), 60)
     hours, minutes = divmod(minutes, 60)
