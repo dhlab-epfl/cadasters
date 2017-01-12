@@ -225,9 +225,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Evaluate
         correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon, iou_thresh=0.7)
-        print('Number correct : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
+        print('Number correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
                                                                 correct_poly / (n_labels_poly - 1)))
-        print('Number incorrect : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
+        print('Number incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
         print('Precision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
 
     # Export geoJSON
@@ -426,6 +426,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
         show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
 
+    # Evaluation of predicted digits
+    if evaluation:
+        namefile = os.path.join(output_path, 'list_finalboxes_before_process.pkl')
+        with open(namefile, 'wb') as handle:
+            pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     #
     # PROCESS BOX (ROTATE, ...) AND SAVE IT
     #
@@ -481,11 +487,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         rotated_number = rotate_image(padding(cropped_number, 255), angle)
         rotated_number = rotated_number[x:x + w, y:y + h, :]
 
-        # Save cropped image
-        if show_plots:
-            # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
-            cv2.imwrite(os.path.join(path_digits, '{}_original.jpg'.format(box.box_id)), rotated_number)
-
         # RECOGNIZING NUMBERS
         # --------------------
         # Number of digits per number  <<<<<< find a way to estimate before recognition
@@ -495,12 +496,25 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # number_of_digits = find_pattern(projx > 2, [True] * 4)
         number_of_digits = 4
         prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits)
+        box.prediction_number = tuple([prediction, proba])
 
         # Save in JSON file
         data = {'number': prediction, 'confidence': proba}
-        filename_json = os.path.join(path_digits, '{}_json.txt'.format(box.box_id))
+        filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
         with open(filename_json, 'w') as fjson:
             json.dump(data, fjson)
+
+        # Save cropped image
+        if show_plots:
+            # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
+            cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
+                        rotated_number)
+
+    # Evaluation of predicted digits
+    if evaluation:
+        namefile = os.path.join(output_path, 'list_finalboxes.pkl')
+        with open(namefile, 'wb') as handle:
+            pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     #
     # LOG FILE

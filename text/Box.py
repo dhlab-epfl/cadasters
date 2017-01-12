@@ -8,8 +8,13 @@ class Box:
 
     def __init__(self, cnt, box_pts, lbl_polygon):
         Box.box_counter += 1
+        # Counter counts the number of boxes that have been created and assigns an unique id to each new created box
         self.box_id = Box.box_counter
+        # 4 corner points of the box, ordered clockwise
         self.box_pts = self.order_pts_clockwise(box_pts)
+        # Points of the original box (before any transformation)
+        self.original_box_pts = None
+        # Contour of the elements inside the box
         self.cnt = cnt
         self.lbl_polygon = lbl_polygon
         self.box_ratio = self._comp_box_ratio()
@@ -23,7 +28,8 @@ class Box:
         self.solidity = self.cnt_area/self.hull_area
         self.surf_ratio = self.hull_area/self.box_area
         self.defectmax = np.max(self._comp_defects())
-        self.original_box_pts = None
+        # Predicted number tuple(predicted number, confidence level)
+        self.prediction_number = None
 
     def _comp_box_area(self):
         self.dimensions = [np.linalg.norm(self.box_pts[0] - self.box_pts[1]),
@@ -33,14 +39,14 @@ class Box:
         self.surf_ratio = self.hull_area/self.box_area
 
     def _comp_box_ratio(self):
-        width_height = [ np.linalg.norm(self.box_pts[0] - self.box_pts[1])/np.linalg.norm(self.box_pts[0] - self.box_pts[3]), # [A/B,
-                    np.linalg.norm(self.box_pts[0] - self.box_pts[3])/np.linalg.norm(self.box_pts[0] - self.box_pts[1])]  # B/A]
+        width_height = [np.linalg.norm(self.box_pts[0] - self.box_pts[1])/np.linalg.norm(self.box_pts[0] - self.box_pts[3]), # [A/B,
+                        np.linalg.norm(self.box_pts[0] - self.box_pts[3])/np.linalg.norm(self.box_pts[0] - self.box_pts[1])]  # B/A]
         return np.max(width_height)
 
     def _comp_defects(self):
         hull = cv2.convexHull(self.cnt,returnPoints = False)
         defects = cv2.convexityDefects(self.cnt,hull)
-        return np.float32(defects[:,0,-1])/256.0 # Take only defect distances and change it to floating point values
+        return np.float32(defects[:, 0, -1])/256.0  # Take only defect distances and change it to floating point values
 
     def order_pts_clockwise(self, pts):
         """
@@ -71,7 +77,7 @@ class Box:
         return zero_offset_box
 
     def copy(self):
-        return Box(self.cnt, self.box_pts)
+        return Box(self.cnt, self.box_pts, self.lbl_polygon)
 
     def expand_box(self, padding):
         """
