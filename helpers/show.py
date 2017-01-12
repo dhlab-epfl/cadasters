@@ -101,3 +101,16 @@ def plot_graph_edges(img, segments, graph, centers, namefile):
     cv2.imwrite(namefile, imsuperpix)
 
     return
+# --------------------------------------------------------------------------
+
+
+def show_orientation(img2draw, eigvect, center, filename=None):
+
+    diagonal = eigvect[0]
+    linex = int(center[0] + diagonal[0]*20)
+    liney = int(center[0] + diagonal[1]*20)
+    cv2.circle(img2draw, (int(center[0]), int(center[1])), 1, 128, -1)
+    cv2.line(img2draw, (int(center[0]), int(center[1])), (linex, liney), 128, 1)
+
+    if filename:
+        cv2.imwrite(filename, img2draw)

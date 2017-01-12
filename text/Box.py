@@ -10,10 +10,10 @@ class Box:
         Box.box_counter += 1
         # Counter counts the number of boxes that have been created and assigns an unique id to each new created box
         self.box_id = Box.box_counter
-        # 4 corner points of the box, ordered clockwise
+        # current 4 corner points of the box, ordered clockwise
         self.box_pts = self.order_pts_clockwise(box_pts)
         # Points of the original box (before any transformation)
-        self.original_box_pts = None
+        self.original_box_pts = self.order_pts_clockwise(box_pts)
         # Contour of the elements inside the box
         self.cnt = cnt
         self.lbl_polygon = lbl_polygon
@@ -71,13 +71,11 @@ class Box:
 
     def zero_offset_box(self, offset):
         zero_offset_box = self.box_pts - offset
-        if self.original_box_pts is None:
-            self.original_box_pts = self.box_pts
         self.box_pts = zero_offset_box
         return zero_offset_box
 
     def copy(self):
-        return Box(self.cnt, self.box_pts, self.lbl_polygon)
+        return Box(self.cnt, self.original_box_pts, self.lbl_polygon)
 
     def expand_box(self, padding):
         """
@@ -114,8 +112,6 @@ class Box:
             print('Box expansion - warning : one or more points have negative value. They will be set to zero.')
             expanded_box[negatives] = 0
 
-        if self.original_box_pts is None:
-            self.original_box_pts = self.box_pts
         self.box_pts = np.int32(expanded_box)
         # Update dimension and area
         self._comp_box_area()

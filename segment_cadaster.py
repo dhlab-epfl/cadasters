@@ -12,7 +12,7 @@ from preprocessing import image_filtering, features_extraction
 from segmentation import compute_slic
 from helpers import show_superpixels, show_polygons, show_class, show_boxes, \
     most_common_label, add_list_to_list, remove_duplicates, bgr2rgb, \
-    padding, rotate_image, write_log_file
+    padding, rotate_image, write_log_file, show_orientation
 from graph import edge_cut_minimize_std, assign_feature_to_node, generate_vertices_and_edges
 from classification import node_classifier
 from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, evalutation_parcel_iou
@@ -426,12 +426,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
         show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
 
-    # Evaluation of predicted digits
-    if evaluation:
-        namefile = os.path.join(output_path, 'list_finalboxes_before_process.pkl')
-        with open(namefile, 'wb') as handle:
-            pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
     #
     # PROCESS BOX (ROTATE, ...) AND SAVE IT
     #
@@ -461,13 +455,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         dilated = cv2.dilate(inv_crop, np.ones((5, 5), np.uint8))
         # Find orientation with PCA
         center, eigvect, angle = find_orientation(dilated)
+
         # Plot orientation
+        # if show_plots:
         #     img2draw = inv_crop.copy()
-        #     diagonal = eigvect[0]
-        #     linex = int(center[0] + diagonal[0]*20)
-        #     liney = int(center[0] + diagonal[1]*20)
-        #     cv2.circle(img2draw, (int(center[0]), int(center[1])), 1, 128, -1)
-        #     cv2.line(img2draw, (int(center[0]), int(center[1])), (linex, liney), 128, 1)
+        #     filename = os.path.join(path_digits, '{}_orientation.jpg'.format(box.box_id))
+        #     show_orientation(img2draw, eigvect, center, filename=filename)
 
         # Rotate image to align it horizontally
         img_pad = padding(inv_crop, 0)
