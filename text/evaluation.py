@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
+from collections import Counter
 from scipy import misc
 from helpers import minimum_edit_distance, count_correct_characters
-from collections import Counter
 
 
 def make_mask_pointPolyTest(mask_shape, contours, distance=False):

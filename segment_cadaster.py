@@ -62,6 +62,25 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # Evaluation flag, check if ground truth files exist
+    if evaluation:
+        path_eval_split = os.path.split(filename_cadaster_img)
+        # Get filename labelled parcels
+        filename = '{}_labelled_gt.jpg'.format(path_eval_split[1].split('.')[0])
+        groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
+
+        # Get filename ground truth labelled digits
+        filename = '{}_digits_label.png'.format(path_eval_split[1].split('.')[0])
+        groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
+
+        if groundtruth_parcels_filename and groundtruth_labels_digits_filename:
+            pass
+        else:
+            evaluation = False
+            print('{} and/or {} ground truth file do not exist. Cannot perform evaluation'.format(
+                groundtruth_parcels_filename, groundtruth_labels_digits_filename))
+
+    # Debug flag, create directory if it doesn't exist already
     debug_folder = os.path.join(output_path, 'debug_files')
     if debug:
         if not os.path.exists(debug_folder):
@@ -222,10 +241,10 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # Evaluate
-        # Get filename
-        path_eval_split = os.path.split(filename_cadaster_img)
-        filename = '{}_labelled_gt.jpg'.format(path_eval_split[1].split('.')[0])
-        groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
+        # # Get filename
+        # path_eval_split = os.path.split(filename_cadaster_img)
+        # filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
+        # groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
         # Open image and give a unique label to each parcel
         image_parcels_gt = cv2.imread(groundtruth_parcels_filename)
         image_parcels_gt = np.uint8(image_parcels_gt[:, :, 0] > 128) * 255
@@ -526,17 +545,17 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(namefile, 'wb') as handle:
             pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        # Get filename ground truth
-        path_eval_split = os.path.split(filename_cadaster_img)
-        filename = '{}_digits_label.png'.format(path_eval_split[1].split('.')[0])
-        labels_digits_filename = os.path.join(path_eval_split[0], filename)
+        # # Get filename ground truth
+        # path_eval_split = os.path.split(filename_cadaster_img)
+        # filename = '{}_digits_label_gt.png'.format(path_eval_split[1].split('.')[0])
+        # groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
 
         print('\t__Evaluation of ID recognition__')
-        labels_matrix = get_labelled_digits_matrix(labels_digits_filename)
+        labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
 
         n_true_positives_numbers, \
-        n_false_positives_numbers, \
-        partial_numbers_results = evaluation_digit_recognition(labels_matrix,final_boxes)
+            n_false_positives_numbers, \
+            partial_numbers_results = evaluation_digit_recognition(labels_matrix,final_boxes)
 
         n_total_numbers = len(np.unique(labels_matrix)) - 1
         n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
@@ -560,6 +579,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # Write Log file
     elapsed_time = time.time() - t0
     log_filename = os.path.join(output_path, 'log.txt')
+
     if evaluation:
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,

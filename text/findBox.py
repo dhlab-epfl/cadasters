@@ -1,10 +1,11 @@
 import numpy as np
 import networkx as nx
 import cv2
-from helpers import merge_segments
-from graph import contract_nodes
 from text.Box import Box
 from helpers import most_common_label
+from graph import contract_nodes
+from helpers import merge_segments
+
 
 
 def find_text_boxes(graph, original_segments):
