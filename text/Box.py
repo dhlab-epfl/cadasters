@@ -109,7 +109,7 @@ class Box:
         # Make sure none of the points are negatives
         negatives = (expanded_box < 0)
         if negatives.flatten().any():
-            print('Box expansion - warning : one or more points have negative value. They will be set to zero.')
+            # print('Box expansion - warning : one or more points have negative value. They will be set to zero.')
             expanded_box[negatives] = 0
 
         self.box_pts = np.int32(expanded_box)

@@ -8,16 +8,18 @@ import networkx as nx
 import json
 import time
 import argparse
+from collections import OrderedDict
 from preprocessing import image_filtering, features_extraction
 from segmentation import compute_slic
 from helpers import show_superpixels, show_polygons, show_class, show_boxes, \
     most_common_label, add_list_to_list, remove_duplicates, bgr2rgb, \
-    padding, rotate_image, write_log_file, show_orientation
+    padding, rotate_image, write_log_file
 from graph import edge_cut_minimize_std, assign_feature_to_node, generate_vertices_and_edges
 from classification import node_classifier
 from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, evalutation_parcel_iou
 from text import find_text_boxes, find_false_box, \
-    group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object
+    group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object, \
+    get_labelled_digits_matrix, evaluation_digit_recognition, interpret_digit_results
 from ocr import recognize_number
 
 
@@ -79,21 +81,21 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # FILTERING
     #
-    print('** FILTERING')
+    print('-- FILTERING --')
     # ---------
     img_filt = image_filtering(img)
 
     #
     # SLIC
     #
-    print('** SLIC')
+    print('-- SLIC --')
     # -----
     original_segments = compute_slic(bgr2rgb(img_filt), params_slic)
 
     #
     # FEATURE EXTRACTION
     #
-    print('** FEATURE EXTRACTION')
+    print('-- FEATURE EXTRACTION --')
     # ------------------
     list_dict_features = ['Lab', 'laplacian', 'frangi']
 
@@ -103,7 +105,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         with open(savefile_feats, 'rb') as handle:
             dict_features = pickle.load(handle)
-        print('{} file loaded'.format(os.path.split(savefile_feats)[-1]))
+        print('\t Debug Mode : {} file loaded'.format(os.path.split(savefile_feats)[-1]))
 
     except FileNotFoundError:
 
@@ -111,11 +113,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         if debug:
             with open(savefile_feats, 'wb') as handle:
                 pickle.dump(dict_features, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print('\t Debug Mode : {} file saved'.format(os.path.split(savefile_feats)[-1]))
 
     #
     # GRAPHS AND MERGING
     #
-    print('** GRAPHS AND MERGING')
+    print('-- GRAPHS AND MERGING --')
     # ------------------
 
     savefile_graph = os.path.join(debug_folder, 'graph.pkl')
@@ -125,7 +128,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             G = pickle.load(handle)
         with open(savefile_nsegments, 'rb') as handle:
             nsegments = pickle.load(handle)
-        print('{} and {} files loaded'.format(os.path.split(savefile_graph)[-1],
+        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(savefile_graph)[-1],
                                               os.path.split(savefile_nsegments)[-1]))
 
     except FileNotFoundError:
@@ -140,6 +143,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                 pickle.dump(G, handle, protocol=pickle.HIGHEST_PROTOCOL)
             with open(savefile_nsegments, 'wb') as handle:
                 pickle.dump(nsegments, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(savefile_graph)[-1],
+                                                                  os.path.split(savefile_nsegments)[-1]))
 
     # Keep track of correspondences between 'original superpiels' and merged ones
     dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
@@ -152,7 +157,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # CLASSIFICATION
     #
-    print('** CLASSIFICATION')
+    print('-- CLASSIFICATION --')
     # ---------------
     # Labels : 0 = Background, 1 = Text, 2 = Contours
 
@@ -171,7 +176,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # PARCELS AND POLYGONS
     #
-    print('** PARCELS AND POLYGONS')
+    print('-- PARCELS AND POLYGONS --')
     # --------------------
     min_size_region = 3  # Regions should be formed at least of min_size_region merged original superpixels
     bgclass = 0  # Label of 'background' class
@@ -191,7 +196,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             listFeatPolygon = pickle.load(handle)
         with open(savefile_dicpoly, 'rb') as handle:
             dic_polygon = pickle.load(handle)
-        print('{} and {} files loaded'.format(os.path.split(savefile_listpoly)[-1],
+        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(savefile_listpoly)[-1],
                                               os.path.split(savefile_dicpoly)[-1]))
 
     except FileNotFoundError:
@@ -202,6 +207,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                 pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
             with open(savefile_dicpoly, 'wb') as handle:
                 pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(savefile_listpoly)[-1],
+                                                                  os.path.split(savefile_dicpoly)[-1]))
+
 
     # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
@@ -224,11 +232,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
 
         # Evaluate
+        print('\t --Evaluation polygon extraction --')
         correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon, iou_thresh=0.7)
-        print('Number correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
+        print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
                                                                 correct_poly / (n_labels_poly - 1)))
-        print('Number incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
-        print('Precision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
+        print('\t\tNumber incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
+        print('\t\tPrecision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
@@ -270,7 +279,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # TEXT PIXELS
     #
-    print('** TEXT PIXELS')
+    print('__TEXT PIXELS__')
     # ------------
 
     # Erode binary version of polygons to avoid touching boundaries to have a 'map'
@@ -351,7 +360,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # BOUNDING BOXES
     #
-    print('** BOUNDING BOXES')
+    print('__BOUNDING BOXES__')
     # ---------------
 
     # Build text graphs
@@ -427,9 +436,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
 
     #
-    # PROCESS BOX (ROTATE, ...) AND SAVE IT
+    # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
     #
-    print('** PROCESS BOX')
+    print('__PROCESS BOX (ID RECOGNITION)__')
     # -------------------------------------
     # Create directory to save digits image
     path_digits = os.path.join(output_path, 'digits')
@@ -489,10 +498,15 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # number_of_digits = find_pattern(projx > 2, [True] * 4)
         number_of_digits = 4
         prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits)
-        box.prediction_number = tuple([prediction, proba])
+        try:
+            box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
+        except TypeError:  # Delete box
+            ind = final_boxes.index(box)
+            final_boxes[ind] = []
+            continue
 
         # Save in JSON file
-        data = {'number': prediction, 'confidence': proba}
+        data = OrderedDict([('number', prediction), ('confidence', proba)])
         filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
         with open(filename_json, 'w') as fjson:
             json.dump(data, fjson)
@@ -503,16 +517,45 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
                         rotated_number)
 
+    # Remove empty items from list
+    final_boxes = [b for b in final_boxes if b]
+
     # Evaluation of predicted digits
     if evaluation:
         namefile = os.path.join(output_path, 'list_finalboxes.pkl')
         with open(namefile, 'wb') as handle:
             pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+        # Get filename ground truth
+        path_eval_split = os.path.split(filename_cadaster_img)
+        filename = '{}_digits_label.png'.format(path_eval_split[1].split('.')[0])
+        labels_digits_filename = os.path.join(path_eval_split[0], filename)
+
+        print('\t__Evaluation of ID recognition__')
+        labels_matrix = get_labelled_digits_matrix(labels_digits_filename)
+
+        n_true_positives_numbers, \
+        n_false_positives_numbers, \
+        partial_numbers_results = evaluation_digit_recognition(labels_matrix,final_boxes)
+
+        n_total_numbers = len(np.unique(labels_matrix)) - 1
+        n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
+        missed_numbers = n_total_numbers - (n_predicted_numbers - n_false_positives_numbers)
+
+        print('Correct recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
+                                                                    n_true_positives_numbers / n_total_numbers))
+        print('False positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
+                                                        n_false_positives_numbers / n_predicted_numbers))
+        print('Missed numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
+                                                        missed_numbers / n_total_numbers))
+
+        CER, counts_digits = interpret_digit_results(n_true_positives_numbers, n_false_positives_numbers,
+                                                     partial_numbers_results, n_total_numbers)
+
     #
     # LOG FILE
     #
-    print('** LOG FILE')
+    print('-- LOG FILE --')
     # ---------
     # Write Log file
     elapsed_time = time.time() - t0
@@ -522,7 +565,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
                        similarity_method=similarity_method, stop_criterion=stop_criterion,
-                       correct_poly=correct_poly, incorrect_poly=incorrect_poly, total_poly=n_labels_poly-1)
+                       correct_poly=correct_poly, incorrect_poly=incorrect_poly, total_poly=n_labels_poly-1,
+                       true_positive_numbers=n_true_positives_numbers, false_positive_numbers=n_false_positives_numbers,
+                       total_predicted_numbers=n_predicted_numbers, CER=CER, counts_digits=counts_digits)
     else:
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,

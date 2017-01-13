@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 from skimage.segmentation import mark_boundaries
+from scipy import misc
+import os
 
 
 def show_superpixels(image, segments, namefile):
@@ -114,3 +116,44 @@ def show_orientation(img2draw, eigvect, center, filename=None):
 
     if filename:
         cv2.imwrite(filename, img2draw)
+# --------------------------------------------------------------------------
+
+
+def show_labelled_digits(digits_labelled_filename, orig_img_filename, save_img_filename):
+    """
+    This function is useful to verify the digit labelling has been done correctly.
+    Writes the label found in digits_labelled_filename image on original image.
+    :param digits_labelled_filename: {png, jpg} file containing the labelled digits
+    :param orig_img_filename: original image filename
+    :param save_img_filename: filename of the file to be saved
+    :return:
+    """
+
+    assert os.path.exists(orig_img_filename), 'Original image filename {} does not exist'.format(orig_img_filename)
+
+    # Load image
+    img_digit_lbl = misc.imread(digits_labelled_filename)
+    img_digit_lbl_bin = np.uint8(255 * (misc.imread(digits_labelled_filename, mode='L') > 0))
+
+    # Find contours
+    _, contours, _ = cv2.findContours(img_digit_lbl_bin.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for c in contours:
+        pt = tuple(c[0][0]) + tuple([2, 2])
+        # r_ch = img_digit_lbl[pt[1], pt[0], 0]
+        g_ch = img_digit_lbl[pt[1], pt[0], 1]
+        b_ch = img_digit_lbl[pt[1], pt[0], 2]
+        if g_ch == 0 or b_ch == 0:
+            pt = tuple(c[0][0]) + tuple([-2, 2])
+            # r_ch = img_digit_lbl[pt[1], pt[0], 0]
+            g_ch = img_digit_lbl[pt[1], pt[0], 1]
+            b_ch = img_digit_lbl[pt[1], pt[0], 2]
+
+        # number = r_ch*256*256 + g_ch*256 + b_ch
+        number = g_ch * 256 + b_ch
+
+        img_orig = cv2.imread(orig_img_filename)
+        cv2.putText(img_orig, str(number), tuple(c[0][0]),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), thickness=1)
+
+    cv2.imwrite(save_img_filename, img_orig)
