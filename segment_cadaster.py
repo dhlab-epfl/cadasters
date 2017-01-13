@@ -66,14 +66,14 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     if evaluation:
         path_eval_split = os.path.split(filename_cadaster_img)
         # Get filename labelled parcels
-        filename = '{}_labelled_gt.jpg'.format(path_eval_split[1].split('.')[0])
+        filename = '{}_labelled_parcel_gt.jpg'.format(path_eval_split[1].split('.')[0])
         groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
 
         # Get filename ground truth labelled digits
-        filename = '{}_digits_label.png'.format(path_eval_split[1].split('.')[0])
+        filename = '{}_digits_label_gt.png'.format(path_eval_split[1].split('.')[0])
         groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
 
-        if groundtruth_parcels_filename and groundtruth_labels_digits_filename:
+        if os.path.exists(groundtruth_parcels_filename) and os.path.exists(groundtruth_labels_digits_filename):
             pass
         else:
             evaluation = False
