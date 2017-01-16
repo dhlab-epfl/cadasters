@@ -14,6 +14,7 @@ def write_log_file(filename, **kwargs):
     stop_criterion = kwargs.get('stop_criterion', None)
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
+    iou_thresh = kwargs.get('iou_thresh', None)
     correct_poly = kwargs.get('correct_poly', None)
     incorrect_poly = kwargs.get('incorrect_poly', None)
     total_poly = kwargs.get('total_poly', None)
@@ -55,24 +56,29 @@ def write_log_file(filename, **kwargs):
         log_file.write('Precision : {:.02f}\n'.format(correct_poly/(correct_poly+incorrect_poly)))
         log_file.write('Recall : {:.02f}\n'.format(correct_poly/total_poly))
 
-    if (true_positive_numbers is not None) and (false_positive_numbers is not None) and \
-            (missed_numbers is not None) and (total_predicted_numbers is not None):
+    try:
         # Calculate totals
         total_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
         total_true_numbers = true_positive_numbers + missed_numbers + total_partial_numbers
+    except NameError:
+        total_true_numbers = 0
+        pass
+
+    if (true_positive_numbers is not None) and (false_positive_numbers is not None) and \
+            (missed_numbers is not None) and (total_predicted_numbers is not None):
 
         log_file.write('---- Evaluation digits ----\n')
+        log_file.write('IoU threshold : {}\n'.format(iou_thresh))
         log_file.write('Correct recognized numbers : {}/{} ({:.02f})\n'.format(true_positive_numbers, total_true_numbers,
                                                                                true_positive_numbers / total_true_numbers))
-        log_file.write('False positive : {}/{} ({:.02f})'.format(false_positive_numbers, total_predicted_numbers,
-                                                                 false_positive_numbers / total_predicted_numbers))
-        log_file.write('Missed numbers : {}/{} ({:.02f})'.format(missed_numbers, total_true_numbers,
-                                                                 missed_numbers / total_true_numbers))
-    if (CER is not None) and (counts_digits is not None):
-        # total_true_numbers = true_positive_numbers + missed_numbers + total_partial_numbers
-        log_file.write('Character Error Rate (CER) : {:.02f}'.format(CER))
-        log_file.write('Partial retrieval {}/{} (:.02f)'.format(total_predicted_numbers, total_true_numbers,
-                                                                total_predicted_numbers / total_true_numbers))
+        log_file.write('False positive : {}/{} ({:.02f})\n'.format(false_positive_numbers, total_predicted_numbers,
+                                                                   false_positive_numbers / total_predicted_numbers))
+        log_file.write('Missed (Non-extracted) numbers : {}/{} ({:.02f})\n'.format(missed_numbers, total_true_numbers,
+                                                                                   missed_numbers / total_true_numbers))
+    if (CER is not None) and (counts_digits is not None) and (total_true_numbers is not None):
+        log_file.write('Character Error Rate (CER) : {:.02f}\n'.format(CER))
+        log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(total_predicted_numbers, total_true_numbers,
+                                                                  total_predicted_numbers / total_true_numbers))
         log_file.write(print_digit_counts(counts_digits))
 
     # Close file

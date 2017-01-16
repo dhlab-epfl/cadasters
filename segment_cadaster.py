@@ -66,7 +66,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     if evaluation:
         path_eval_split = os.path.split(filename_cadaster_img)
         # Get filename labelled parcels
-        filename = '{}_labelled_parcel_gt.jpg'.format(path_eval_split[1].split('.')[0])
+        filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
         groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
 
         # Get filename ground truth labelled digits
@@ -77,7 +77,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             pass
         else:
             evaluation = False
-            print('{} and/or {} ground truth file do not exist. Cannot perform evaluation'.format(
+            print('** ! WARNING ! : {} and/or {} ground truth file do not exist. Cannot perform evaluation'.format(
                 groundtruth_parcels_filename, groundtruth_labels_digits_filename))
 
     # Debug flag, create directory if it doesn't exist already
@@ -252,7 +252,9 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Evaluate
         print('\t --Evaluation polygon extraction --')
-        correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon, iou_thresh=0.7)
+        iou_thresh_parcels = 0.7
+        correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon,
+                                                              iou_thresh=iou_thresh_parcels)
         print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
                                                                 correct_poly / (n_labels_poly - 1)))
         print('\t\tNumber incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
@@ -559,13 +561,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         n_total_numbers = len(np.unique(labels_matrix)) - 1
         n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
-        missed_numbers = n_total_numbers - (n_predicted_numbers - n_false_positives_numbers)
+        missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
 
         print('Correct recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
                                                                     n_true_positives_numbers / n_total_numbers))
         print('False positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
                                                         n_false_positives_numbers / n_predicted_numbers))
-        print('Missed numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
+        print('Missed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
                                                         missed_numbers / n_total_numbers))
 
         CER, counts_digits = interpret_digit_results(n_true_positives_numbers, n_false_positives_numbers,
@@ -585,9 +587,11 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
                        similarity_method=similarity_method, stop_criterion=stop_criterion,
-                       correct_poly=correct_poly, incorrect_poly=incorrect_poly, total_poly=n_labels_poly-1,
+                       iou_thresh=iou_thresh_parcels, correct_poly=correct_poly, incorrect_poly=incorrect_poly,
+                       total_poly=n_labels_poly-1,
                        true_positive_numbers=n_true_positives_numbers, false_positive_numbers=n_false_positives_numbers,
-                       total_predicted_numbers=n_predicted_numbers, CER=CER, counts_digits=counts_digits)
+                       missed_numbers=missed_numbers, total_predicted_numbers=n_predicted_numbers,
+                       CER=CER, counts_digits=counts_digits)
     else:
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
