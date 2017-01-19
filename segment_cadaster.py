@@ -297,6 +297,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                 filename_cropped_polygon = os.path.join(crop_poly_dirpath, '{}.jpg'.format(uid))
                 cv2.imwrite(filename_cropped_polygon, cropped_polygon_image)
 
+    #
+    # TEXT PIXELS
+    #
+    print('__TEXT PIXELS__')
+    # ------------
+
     # Saving for debug
     savefile_boxes = os.path.join(debug_folder, 'boxes.pkl')
     try:
@@ -306,13 +312,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         print('\t Debug Mode : {} file loaded'.format(os.path.split(savefile_boxes)[-1]))
 
     except FileNotFoundError:
-
-        #
-        # TEXT PIXELS
-        #
-        print('__TEXT PIXELS__')
-        # ------------
-
         # Erode binary version of polygons to avoid touching boundaries to have a 'map'
         # of polygons defined by their label. This will be useful to group text elements.
         mask_to_erode = cv2.erode(np.uint8(1 * (polygons_labels != 0)), np.ones((4, 4), np.uint8))
