@@ -297,164 +297,180 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                 filename_cropped_polygon = os.path.join(crop_poly_dirpath, '{}.jpg'.format(uid))
                 cv2.imwrite(filename_cropped_polygon, cropped_polygon_image)
 
-    #
-    # TEXT PIXELS
-    #
-    print('__TEXT PIXELS__')
-    # ------------
+    # Saving for debug
+    savefile_boxes = os.path.join(debug_folder, 'boxes.pkl')
+    try:
 
-    # Erode binary version of polygons to avoid touching boundaries to have a 'map'
-    # of polygons defined by their label. This will be useful to group text elements.
-    mask_to_erode = cv2.erode(np.uint8(1 * (polygons_labels != 0)), np.ones((4, 4), np.uint8))
-    polygons_labels *= (mask_to_erode > 0)
+        with open(savefile_boxes, 'rb') as handle:
+            final_boxes = pickle.load(handle)
+        print('\t Debug Mode : {} file loaded'.format(os.path.split(savefile_boxes)[-1]))
 
-    # This should give text candidates since text is usually inside the polygons
-    text = (dict_features['frangi'] > 0.4) * polygons_labels
-    mask_text_erode = np.uint8(255 * (text != 0))
-    # Opening
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
-    mask_text_erode = cv2.morphologyEx(mask_text_erode, cv2.MORPH_CLOSE, kernel)
-    mask_text_erode = cv2.morphologyEx(mask_text_erode, cv2.MORPH_OPEN, kernel)
-    text *= (mask_text_erode > 0)
+    except FileNotFoundError:
 
-    #
-    # CORRECTION OF TEXT SP USING POLYGONS INFORMATION
-    # ------------------------------------------------
-    # We use the fact that a text zone (label or street name) is generally inside a parcel. So we enlarge the
-    # number of possible text candidates by adding the ridges present inside polygons.
+        #
+        # TEXT PIXELS
+        #
+        print('__TEXT PIXELS__')
+        # ------------
 
-    # Get id node of text segment
-    text_node_id = np.unique(original_segments*(text != 0))
-    # remove BG id
-    if 0 in text_node_id:
-        text_node_id = list(text_node_id)
-        text_node_id.remove(0)
+        # Erode binary version of polygons to avoid touching boundaries to have a 'map'
+        # of polygons defined by their label. This will be useful to group text elements.
+        mask_to_erode = cv2.erode(np.uint8(1 * (polygons_labels != 0)), np.ones((4, 4), np.uint8))
+        polygons_labels *= (mask_to_erode > 0)
 
-    # set attribute class of text node to be 1
-    attr_text = {tn: 1 for tn in text_node_id}
-    G.add_nodes_from([tn for tn in text_node_id if dic_corresp_label[tn] < 0])  # add only nodes that have been removed
-    nx.set_node_attributes(G, 'class', attr_text)
+        # This should give text candidates since text is usually inside the polygons
+        text = (dict_features['frangi'] > 0.4) * polygons_labels
+        mask_text_erode = np.uint8(255 * (text != 0))
+        # Opening
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4, 4))
+        mask_text_erode = cv2.morphologyEx(mask_text_erode, cv2.MORPH_CLOSE, kernel)
+        mask_text_erode = cv2.morphologyEx(mask_text_erode, cv2.MORPH_OPEN, kernel)
+        text *= (mask_text_erode > 0)
 
-    # Correct nodes class by removing the text node from previous eventual merged group of nodes
-    node_to_correct = {tn: dic_corresp_label[tn] for tn in text_node_id if dic_corresp_label[tn] < 0}
+        #
+        # CORRECTION OF TEXT SP USING POLYGONS INFORMATION
+        # ------------------------------------------------
+        # We use the fact that a text zone (label or street name) is generally inside a parcel. So we enlarge the
+        # number of possible text candidates by adding the ridges present inside polygons.
 
-    for k, v in node_to_correct.items():
-        G.node[v]['id_sp'].remove(k)
-        pix = original_segments == k
-        nsegments[pix] = k
-        assign_feature_to_node(G, k, nsegments, dict_features)
+        # Get id node of text segment
+        text_node_id = np.unique(original_segments*(text != 0))
+        # remove BG id
+        if 0 in text_node_id:
+            text_node_id = list(text_node_id)
+            text_node_id.remove(0)
 
-    # Update correspondancies label nodes
-    dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
-                         for sp in np.unique(original_segments)}
+        # set attribute class of text node to be 1
+        attr_text = {tn: 1 for tn in text_node_id}
+        G.add_nodes_from([tn for tn in text_node_id if dic_corresp_label[tn] < 0])  # add only nodes that have been removed
+        nx.set_node_attributes(G, 'class', attr_text)
 
-    # For each text node, look which is its corresponding polygon and label the text with the polygon label
-    # For that we look at which label is the most present (in the case of multiple labels appearing)
-    attr_lbl_poly = {tn: most_common_label(polygons_labels[original_segments == tn]) for tn in text_node_id}
-    nx.set_node_attributes(G, 'lbl_poly', attr_lbl_poly)
+        # Correct nodes class by removing the text node from previous eventual merged group of nodes
+        node_to_correct = {tn: dic_corresp_label[tn] for tn in text_node_id if dic_corresp_label[tn] < 0}
 
-    #
-    # CLASSIFICATION OF LEFT UNCLASSIFIED NODES
-    # -----------------------------------------
-    # Get class attribute from every node
-    attribute_node_class = {n: G.node[dic_corresp_label[n]]['class'] for n in np.unique(original_segments)
-                            if 'class' in G.node[dic_corresp_label[n]]}
-    attribute_node_lbl_poly = {n: G.node[dic_corresp_label[n]]['lbl_poly'] for n in np.unique(original_segments)
-                               if 'lbl_poly' in G.node[dic_corresp_label[n]]}
+        for k, v in node_to_correct.items():
+            G.node[v]['id_sp'].remove(k)
+            pix = original_segments == k
+            nsegments[pix] = k
+            assign_feature_to_node(G, k, nsegments, dict_features)
 
-    # New graph with original superpixels
-    O = nx.Graph()
+        # Update correspondancies label nodes
+        dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
+                             for sp in np.unique(original_segments)}
 
-    # Construct vertices and neighboring edges
-    vertices, edges = generate_vertices_and_edges(original_segments)
-    # Add nodes
-    O.add_nodes_from(vertices)
-    nx.set_node_attributes(O, 'class', attribute_node_class)
-    nx.set_node_attributes(O, 'lbl_poly', attribute_node_lbl_poly)
-    O.add_edges_from(edges)
+        # For each text node, look which is its corresponding polygon and label the text with the polygon label
+        # For that we look at which label is the most present (in the case of multiple labels appearing)
+        attr_lbl_poly = {tn: most_common_label(polygons_labels[original_segments == tn]) for tn in text_node_id}
+        nx.set_node_attributes(G, 'lbl_poly', attr_lbl_poly)
 
-    # Show class
-    if show_plots:
-        namefile_class = os.path.join(output_path, 'predicted3class.jpg')
-        show_class(nsegments, G, namefile_class)
+        #
+        # CLASSIFICATION OF LEFT UNCLASSIFIED NODES
+        # -----------------------------------------
+        # Get class attribute from every node
+        attribute_node_class = {n: G.node[dic_corresp_label[n]]['class'] for n in np.unique(original_segments)
+                                if 'class' in G.node[dic_corresp_label[n]]}
+        attribute_node_lbl_poly = {n: G.node[dic_corresp_label[n]]['lbl_poly'] for n in np.unique(original_segments)
+                                   if 'lbl_poly' in G.node[dic_corresp_label[n]]}
 
-    #
-    # BOUNDING BOXES
-    #
-    print('__BOUNDING BOXES__')
-    # ---------------
+        # New graph with original superpixels
+        O = nx.Graph()
 
-    # Build text graphs
-    # -----------------
-    Tgraph = nx.Graph()
+        # Construct vertices and neighboring edges
+        vertices, edges = generate_vertices_and_edges(original_segments)
+        # Add nodes
+        O.add_nodes_from(vertices)
+        nx.set_node_attributes(O, 'class', attribute_node_class)
+        nx.set_node_attributes(O, 'lbl_poly', attribute_node_lbl_poly)
+        O.add_edges_from(edges)
 
-    text_nodes = {tn: O.node[tn]['class'] for tn in O.nodes() if O.node[tn]['class'] == 1}
-    attr_lbl_poly = {tn: O.node[tn]['lbl_poly'] for tn in O.nodes() if 'lbl_poly' in O.node[tn]}
+        # Show class
+        if show_plots:
+            namefile_class = os.path.join(output_path, 'predicted3class.jpg')
+            show_class(nsegments, G, namefile_class)
 
-    Tgraph.add_nodes_from(text_nodes.keys())
-    nx.set_node_attributes(Tgraph, 'class', text_nodes)
-    Tgraph.add_nodes_from(attr_lbl_poly.keys())
-    nx.set_node_attributes(Tgraph, 'lbl_poly', attr_lbl_poly)
 
-    # Add edges only between text nodes
-    for tn in text_nodes:
-        adjacent_nodes = [an[0] for an in O[tn].items() if not an[1]]  # check only nodes that are not linked yet
-        for an in adjacent_nodes:
-            if O.node[tn]['class'] == O.node[an]['class']:  # add edge if link between two text superpixels
-                Tgraph.add_edge(tn, an)
+        #
+        # BOUNDING BOXES
+        #
+        print('__BOUNDING BOXES__')
+        # ---------------
 
-    # Find boxes
-    # ----------
-    box_id = 0
-    listBox = find_text_boxes(Tgraph, original_segments)
+        # Build text graphs
+        # -----------------
+        Tgraph = nx.Graph()
 
-    reference_boxes = copy.deepcopy(listBox)
-    # TRY TO ELIMINATE FALSE POSITIVES
-    # --------------------------------
-    boxes_false = find_false_box(listBox, reference_boxes)
-    boxes_with_lbl = [b for b in listBox if b.lbl_polygon is not None]
-    true_non_labeled = [b for b in listBox if b not in boxes_false and b not in boxes_with_lbl]
+        text_nodes = {tn: O.node[tn]['class'] for tn in O.nodes() if O.node[tn]['class'] == 1}
+        attr_lbl_poly = {tn: O.node[tn]['lbl_poly'] for tn in O.nodes() if 'lbl_poly' in O.node[tn]}
 
-    # GROUP BOXES that have labels
-    # ----------------------------
-    maximum_distance = 15
-    groupedBox = group_box_with_lbl(boxes_with_lbl, boxes_false, maximum_distance)
+        Tgraph.add_nodes_from(text_nodes.keys())
+        nx.set_node_attributes(Tgraph, 'class', text_nodes)
+        Tgraph.add_nodes_from(attr_lbl_poly.keys())
+        nx.set_node_attributes(Tgraph, 'lbl_poly', attr_lbl_poly)
 
-    # Maybe check also too big boxes that may appear with groupbox
-    # and add it to the previous list
-    add_list_to_list(boxes_false, find_false_box(boxes_with_lbl, reference_boxes))
-    # Consider only unique elements
-    boxes_false = remove_duplicates(boxes_false)
+        # Add edges only between text nodes
+        for tn in text_nodes:
+            adjacent_nodes = [an[0] for an in O[tn].items() if not an[1]]  # check only nodes that are not linked yet
+            for an in adjacent_nodes:
+                if O.node[tn]['class'] == O.node[an]['class']:  # add edge if link between two text superpixels
+                    Tgraph.add_edge(tn, an)
 
-    # True boxes
-    boxes_true = true_non_labeled.copy()
-    add_list_to_list(boxes_true, [b for b in boxes_with_lbl if b not in boxes_false])
-    # Flatten list and consider only unique elements
-    boxes_true = remove_duplicates(boxes_true)
+        # Find boxes
+        # ----------
+        box_id = 0
+        listBox = find_text_boxes(Tgraph, original_segments)
 
-    # GROUP BOXES that are true with small false elements
-    # ----------------------------
-    final_boxes = boxes_true.copy()
-    maximum_distance = 7
-    groupedBox = group_box_with_isolates(final_boxes, boxes_false, maximum_distance)
+        reference_boxes = copy.deepcopy(listBox)
+        # TRY TO ELIMINATE FALSE POSITIVES
+        # --------------------------------
+        boxes_false = find_false_box(listBox, reference_boxes)
+        boxes_with_lbl = [b for b in listBox if b.lbl_polygon is not None]
+        true_non_labeled = [b for b in listBox if b not in boxes_false and b not in boxes_with_lbl]
 
-    # Check for false box one last time
-    add_list_to_list(boxes_false, find_false_box(final_boxes, reference_boxes))
-    boxes_false = remove_duplicates(boxes_false)
+        # GROUP BOXES that have labels
+        # ----------------------------
+        maximum_distance = 15
+        groupedBox = group_box_with_lbl(boxes_with_lbl, boxes_false, maximum_distance)
 
-    final_boxes = [b for b in final_boxes if b not in boxes_false]
+        # Maybe check also too big boxes that may appear with groupbox
+        # and add it to the previous list
+        add_list_to_list(boxes_false, find_false_box(boxes_with_lbl, reference_boxes))
+        # Consider only unique elements
+        boxes_false = remove_duplicates(boxes_false)
 
-    # SHOW BOXES
-    if show_plots:
-        # All
-        img_allBox = img_filt.copy()
-        show_boxes(img_allBox, final_boxes, (0, 255, 0))
-        show_boxes(img_allBox, boxes_false, (0, 0, 255))
-        cv2.imwrite(os.path.join(output_path, 'allBox.jpg'), img_allBox)
+        # True boxes
+        boxes_true = true_non_labeled.copy()
+        add_list_to_list(boxes_true, [b for b in boxes_with_lbl if b not in boxes_false])
+        # Flatten list and consider only unique elements
+        boxes_true = remove_duplicates(boxes_true)
 
-        # Final boxes
-        filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
-        show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
+        # GROUP BOXES that are true with small false elements
+        # ----------------------------
+        final_boxes = boxes_true.copy()
+        maximum_distance = 7
+        groupedBox = group_box_with_isolates(final_boxes, boxes_false, maximum_distance)
+
+        # Check for false box one last time
+        add_list_to_list(boxes_false, find_false_box(final_boxes, reference_boxes))
+        boxes_false = remove_duplicates(boxes_false)
+
+        final_boxes = [b for b in final_boxes if b not in boxes_false]
+
+        # SHOW BOXES
+        if show_plots:
+            # All
+            img_allBox = img_filt.copy()
+            show_boxes(img_allBox, final_boxes, (0, 255, 0))
+            show_boxes(img_allBox, boxes_false, (0, 0, 255))
+            cv2.imwrite(os.path.join(output_path, 'allBox.jpg'), img_allBox)
+
+            # Final boxes
+            filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
+            show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
+
+        if debug:
+            with open(savefile_boxes, 'wb') as handle:
+                pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print('\t Debug Mode : {} file saved'.format(os.path.split(savefile_boxes)[-1]))
 
     #
     # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
