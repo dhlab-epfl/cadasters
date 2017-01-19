@@ -7,7 +7,7 @@ from .cnn import inference2
 from ocr_image_processing import binarize_with_preprocess, preprocess_digit, segment_number
 from .helpers import get_absolute_path
 
-TF_MODEL = get_absolute_path('../data/models/finetuned-final')
+TF_MODEL = get_absolute_path('../data/models/mixed-model-net2/mixed-inf2')
 
 
 # Currently we reconstruct the graph and reload the model each time we try te recognize a number, this is not efficient!
