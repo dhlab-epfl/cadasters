@@ -23,7 +23,7 @@ from text import find_text_boxes, find_false_box, \
 from ocr import recognize_number
 
 
-def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge,
+def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, tf_model=None,
                      show_plots=True, evaluation=False, debug=False):
     """
     Launches the segmentation of the cadaster image and outputs
@@ -46,6 +46,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                                         A value greater than stop_criterion indicates that there are edges linking
                                         dissimilar vertices. When value < stop_criterion, the elements of the subgraph
                                         can be merged together to form an homogeneous region.
+    :param tf_model : Path of tensorflow model to be used for digit recognition.
     :param show_plots: Boolean. To save intermediate plots of polygons and boxes (default=True)
     :param evaluation: Boolean. To evaluate the results (parcel extraction and digit recognition). A ground truth must
                         exist in data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
@@ -635,5 +636,5 @@ if __name__ == '__main__':
                    'mode': 'RGB'}
 
     # Launch segmentation
-    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot,
-                     evaluation=args.evaluation, debug=args.debug)
+    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, tf_model=args.tensorflow_model,
+                     show_plots=args.plot, evaluation=args.evaluation, debug=args.debug)
