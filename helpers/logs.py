@@ -14,6 +14,7 @@ def write_log_file(filename, **kwargs):
     stop_criterion = kwargs.get('stop_criterion', None)
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
+    tf_model = kwargs.get('tf_model', Name)
     iou_thresh = kwargs.get('iou_thresh', None)
     correct_poly = kwargs.get('correct_poly', None)
     incorrect_poly = kwargs.get('incorrect_poly', None)
@@ -48,6 +49,7 @@ def write_log_file(filename, **kwargs):
     log_file.write('Stop criterion : {}\n'.format(stop_criterion))
     log_file.write('---- Classification ----\n')
     log_file.write('Classifier file: {}\n'.format(classifier_filename))
+    log_file.write('Digit recognizer TF model : {}\n'.format(tf_model))
 
     if correct_poly and total_poly and incorrect_poly:
         log_file.write('---- Evaluation parcels ----\n')
