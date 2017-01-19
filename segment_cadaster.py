@@ -23,7 +23,7 @@ from text import find_text_boxes, find_false_box, \
 from ocr import recognize_number
 
 
-def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge,
+def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, tf_model=None,
                      show_plots=True, evaluation=False, debug=False):
     """
     Launches the segmentation of the cadaster image and outputs
@@ -46,6 +46,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                                         A value greater than stop_criterion indicates that there are edges linking
                                         dissimilar vertices. When value < stop_criterion, the elements of the subgraph
                                         can be merged together to form an homogeneous region.
+    :param tf_model : Path of tensorflow model to be used for digit recognition.
     :param show_plots: Boolean. To save intermediate plots of polygons and boxes (default=True)
     :param evaluation: Boolean. To evaluate the results (parcel extraction and digit recognition). A ground truth must
                         exist in data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
@@ -605,11 +606,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 if __name__ == '__main__':
     # Parsing
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
-    parser.add_argument('-im', '--cadaster_img', help="filename of the cadaster image", type=str)
+    parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str)
     parser.add_argument('-out', '--output_path', help='Output directory for results and plots', type=str,
                         default='outputs')
     parser.add_argument('-c', '--classifier', type=str, help='filename of fitted classifier',
                         default='data/svm_classifier.pkl')
+    parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
+                        default='data/models/finetuned-final')
     parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean)', default=True)
     parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
                                                                 'SLIC algorithm using a percentage of the total number '
@@ -633,5 +636,5 @@ if __name__ == '__main__':
                    'mode': 'RGB'}
 
     # Launch segmentation
-    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, show_plots=args.plot,
-                     evaluation=args.evaluation, debug=args.debug)
+    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, tf_model=args.tensorflow_model,
+                     show_plots=args.plot, evaluation=args.evaluation, debug=args.debug)
