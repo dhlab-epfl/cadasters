@@ -578,12 +578,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
         missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
 
-        print('Correct recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
-                                                                    n_true_positives_numbers / n_total_numbers))
-        print('False positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
-                                                        n_false_positives_numbers / n_predicted_numbers))
-        print('Missed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
-                                                        missed_numbers / n_total_numbers))
+        print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
+                                                                      n_true_positives_numbers / n_total_numbers))
+        print('\tFalse positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
+                                                          n_false_positives_numbers / n_predicted_numbers))
+        print('\tMissed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
+                                                                          missed_numbers / n_total_numbers))
 
         CER, counts_digits = interpret_digit_results(n_true_positives_numbers, n_false_positives_numbers,
                                                      partial_numbers_results, n_total_numbers)
