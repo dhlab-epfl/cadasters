@@ -607,19 +607,19 @@ if __name__ == '__main__':
     # Parsing
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
     parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str)
-    parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
-                        default='data/models/finetuned-final')
     parser.add_argument('-out', '--output_path', help='Output directory for results and plots. Default : outputs',
                         type=str, default='outputs')
     parser.add_argument('-c', '--classifier', type=str, help='Filename of fitted classifier. '
                                                              'Default : data/svm_classifier.pkl',
                         default='data/svm_classifier.pkl')
-    parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean). Default : 1', default=True)
+    parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
+                        default='data/models/finetuned-final')
     parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
                                                                 'SLIC algorithm using a percentage of the total number '
                                                                 'of pixels. Give a percentage between 0 and 1.'
                                                                 'Default : 0.01',
                         default=0.01)
+    parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean). Default : 1', default=True)
     parser.add_argument('-ev', '--evaluation', type=bool, help='To enable evaluation of parcels extraction and digit '
                                                                'segmentation (only possible if a ground-truth is '
                                                                'available in folder data/data_evaluation). Default : 0',
