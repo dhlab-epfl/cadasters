@@ -1,5 +1,5 @@
 import tensorflow as tf
-from ocr.cnn import inference2, loss_cross_entropy, training, accuracy_evaluation
+from ocr.cnn import inference, loss_cross_entropy, training, accuracy_evaluation
 from ocr.helpers import get_absolute_path
 import os
 
@@ -15,7 +15,7 @@ def train(dataset_train, dataset_test, models_dir=MODELS_DIR, dataset_validation
         y_ = tf.placeholder(tf.float32, shape=[None, 10], name='labels')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-        y_infer = inference2(x, keep_prob)
+        y_infer = inference(x, keep_prob)
         with tf.name_scope('entropy'):
             cross_entropy = loss_cross_entropy(y_infer, y_)
             tf.summary.scalar('loss-xentropy', cross_entropy)
@@ -48,9 +48,9 @@ def train(dataset_train, dataset_test, models_dir=MODELS_DIR, dataset_validation
                 summary_writer.add_summary(summary_str, step)
                 summary_writer.flush()
             if step % 1000 == 0:
-                saver.save(sess, os.path.join(models_dir, 'inf2'), global_step=step)
+                saver.save(sess, os.path.join(models_dir, 'model'), global_step=step)
 
-        saver.save(sess, os.path.join(models_dir, 'inf2'))
+        saver.save(sess, os.path.join(models_dir, 'model'))
         accuracy_value = sess.run(accuracy,
                                   feed_dict={x: dataset_test.images, y_: dataset_test.labels, keep_prob: 1.0})
         print('Accuracy: {:0.04f}'.format(accuracy_value))

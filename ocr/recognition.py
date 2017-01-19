@@ -2,8 +2,7 @@ import tensorflow as tf
 import os
 import cv2
 import numpy as np
-# from .cnn import inference
-from .cnn import inference2
+from .cnn import inference
 from ocr_image_processing import binarize_with_preprocess, preprocess_digit, segment_number
 from .helpers import get_absolute_path
 
@@ -17,7 +16,7 @@ def recognize_digits(digits, tf_model):
         X = tf.placeholder(tf.float32, [None, 784])
         keep_prob = tf.placeholder(tf.float32)
 
-        y_pred = inference2(X, keep_prob)
+        y_pred = inference(X, keep_prob)
 
         saver = tf.train.Saver()
         sess = tf.Session()

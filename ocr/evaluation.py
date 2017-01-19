@@ -2,7 +2,7 @@ import os
 
 import tensorflow as tf
 
-from ocr.cnn import inference, evaluation
+from ocr.cnn import inference, accuracy_evaluation
 from ocr.helpers import get_absolute_path
 
 MODELS_DIR = get_absolute_path('../data/models')
@@ -24,7 +24,7 @@ def test_accuracy(model_file, dataset):
 
         y_pred = inference(X, keep_prob)
 
-        eval_accuracy = evaluation(y_pred, y_true)
+        eval_accuracy = accuracy_evaluation(y_pred, y_true)
 
         saver = tf.train.Saver()
         sess = tf.Session()

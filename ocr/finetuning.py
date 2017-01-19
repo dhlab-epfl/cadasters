@@ -1,22 +1,23 @@
 import tensorflow as tf
-from .cnn import inference2, loss_cross_entropy, training, accuracy_evaluation
+from .cnn import inference, loss_cross_entropy, training, accuracy_evaluation
 from .evaluation import do_eval
 from ocr.helpers import get_absolute_path
 import os
 
-MODELS_DIR = get_absolute_path('../tensorflow_outputs/models/')
+MODELS_DIR = get_absolute_path('../data/models/')
+RESTORE_FILE = get_absolute_path('../data/models/mnist-net2/mnist-net2')
 BATCH_SIZE = 50
 MAX_STEPS = 10000
 
 
-def finetune(dataset_train, dataset_test,  model_dir=MODELS_DIR):
+def finetune(dataset_train, dataset_test, restored_model_file=RESTORE_FILE, model_dir=MODELS_DIR):
 
     with tf.Graph().as_default():  # Create a new graph and temporarily make it the default one
         X = tf.placeholder(tf.float32, [None, 784])
         y_true = tf.placeholder(tf.float32, [None, 10])
         keep_prob = tf.placeholder(tf.float32)
 
-        y_infer = inference2(X, keep_prob)
+        y_infer = inference(X, keep_prob)
         with tf.name_scope('entropy'):
             cross_entropy = loss_cross_entropy(y_infer, y_true)
             tf.summary.scalar('loss-xentropy', cross_entropy)
@@ -32,7 +33,7 @@ def finetune(dataset_train, dataset_test,  model_dir=MODELS_DIR):
         saver = tf.train.Saver()
         sess = tf.Session()
 
-        saver.restore(sess, os.path.join(model_dir, 'net2_mnist/inf2'))
+        saver.restore(sess, restored_model_file)
 
         summary_writer = tf.summary.FileWriter(model_dir, sess.graph)
 
@@ -56,7 +57,7 @@ def finetune(dataset_train, dataset_test,  model_dir=MODELS_DIR):
                 summary_writer.flush()
 
             if (step + 1) % 1000 == 0 or (step + 1) == MAX_STEPS:
-                saver.save(sess, os.path.join(model_dir, 'net2_finetuned/finetuned'), global_step=step)
+                saver.save(sess, os.path.join(model_dir, 'finetuned'), global_step=step)
                 print('Test data eval:')
                 do_eval(sess, accuracy, X, y_true, keep_prob, dataset_test)
 
