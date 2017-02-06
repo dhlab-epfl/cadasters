@@ -534,7 +534,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # More than 2 pixels per colums non zero, digits is composed of at least 4 columns
         # number_of_digits = find_pattern(projx > 2, [True] * 4)
         number_of_digits = 4
-        prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits)
+        prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits, tf_model=tf_model)
         try:
             box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
         except TypeError:  # Delete box
@@ -602,7 +602,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
-                       similarity_method=similarity_method, stop_criterion=stop_criterion,
+                       similarity_method=similarity_method, stop_criterion=stop_criterion, digit_tf_model=tf_model,
                        iou_thresh=iou_thresh_parcels, correct_poly=correct_poly, incorrect_poly=incorrect_poly,
                        total_poly=n_labels_poly-1,
                        true_positive_numbers=n_true_positives_numbers, false_positive_numbers=n_false_positives_numbers,
@@ -612,7 +612,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
-                       similarity_method=similarity_method, stop_criterion=stop_criterion)
+                       similarity_method=similarity_method, stop_criterion=stop_criterion,
+                       digit_tf_model=tf_model)
 
     print('Cadaster image processed with success!')
 # ----------------------------------------------------------------------------------------
