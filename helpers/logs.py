@@ -14,7 +14,7 @@ def write_log_file(filename, **kwargs):
     stop_criterion = kwargs.get('stop_criterion', None)
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
-    tf_model = kwargs.get('tf_model', Name)
+    tf_model = kwargs.get('digit_tf_model', None)
     iou_thresh = kwargs.get('iou_thresh', None)
     correct_poly = kwargs.get('correct_poly', None)
     incorrect_poly = kwargs.get('incorrect_poly', None)
@@ -53,6 +53,7 @@ def write_log_file(filename, **kwargs):
 
     if correct_poly and total_poly and incorrect_poly:
         log_file.write('---- Evaluation parcels ----\n')
+        log_file.write('IoU threshold : {}\n'.format(iou_thresh))
         log_file.write('Correct parcels : {}/{}\n'.format(correct_poly, total_poly))
         log_file.write('Incorrect parcels : {}/{} \n'.format(incorrect_poly, total_poly))
         log_file.write('Precision : {:.02f}\n'.format(correct_poly/(correct_poly+incorrect_poly)))
@@ -70,7 +71,6 @@ def write_log_file(filename, **kwargs):
             (missed_numbers is not None) and (total_predicted_numbers is not None):
 
         log_file.write('---- Evaluation digits ----\n')
-        log_file.write('IoU threshold : {}\n'.format(iou_thresh))
         log_file.write('Correct recognized numbers : {}/{} ({:.02f})\n'.format(true_positive_numbers, total_true_numbers,
                                                                                true_positive_numbers / total_true_numbers))
         log_file.write('False positive : {}/{} ({:.02f})\n'.format(false_positive_numbers, total_predicted_numbers,
@@ -79,8 +79,8 @@ def write_log_file(filename, **kwargs):
                                                                                    missed_numbers / total_true_numbers))
     if (CER is not None) and (counts_digits is not None) and (total_true_numbers is not None):
         log_file.write('Character Error Rate (CER) : {:.02f}\n'.format(CER))
-        log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(total_predicted_numbers, total_true_numbers,
-                                                                  total_predicted_numbers / total_true_numbers))
+        log_file.write('Partial retrieval {}/{} ({:.02f})\n'.format(total_predicted_numbers, total_true_numbers,
+                                                                    total_predicted_numbers / total_true_numbers))
         log_file.write(print_digit_counts(counts_digits))
 
     # Close file
