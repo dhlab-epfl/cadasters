@@ -20,10 +20,11 @@ def write_log_file(filename, **kwargs):
     # total_poly = kwargs.get('total_poly', None)
     results_eval_parcels = kwargs.get('results_eval_parcels', None)
     iou_thresh_digits = kwargs.get('iou_thresh_digits', None)
-    true_positive_numbers = kwargs.get('true_positive_numbers', None)
-    false_positive_numbers = kwargs.get('false_positive_numbers', None)
-    missed_numbers = kwargs.get('missed_numbers', None)
-    total_predicted_numbers = kwargs.get('total_predicted_numbers', None)
+    # true_positive_numbers = kwargs.get('true_positive_numbers', None)
+    # false_positive_numbers = kwargs.get('false_positive_numbers', None)
+    # missed_numbers = kwargs.get('missed_numbers', None)
+    # total_predicted_numbers = kwargs.get('total_predicted_numbers', None)
+    results_eval_digits = kwargs.get('results_eval_digits', None)
     CER = kwargs.get('CER', None)
     counts_digits = kwargs.get('counts_digits', None)
 
@@ -65,29 +66,32 @@ def write_log_file(filename, **kwargs):
         # log_file.write('Precision : {:.02f}\n'.format(results_eval_parcels['precision']))
         # log_file.write('Recall : {:.02f}\n'.format(results_eval_parcels['recall']))
 
-    try:
-        # Calculate totals
-        total_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
-        total_true_numbers = true_positive_numbers + missed_numbers + total_partial_numbers
-    except NameError:
-        total_true_numbers = 0
-        pass
-
-    if (true_positive_numbers is not None) and (false_positive_numbers is not None) and \
-            (missed_numbers is not None) and (total_predicted_numbers is not None):
+    if results_eval_digits:
 
         log_file.write('---- Evaluation digits ----\n')
+
+        log_file.write('** Localization\n')
         log_file.write('IoU threshold : {}\n'.format(iou_thresh_digits))
-        log_file.write('Correct recognized numbers : {}/{} ({:.02f})\n'.format(true_positive_numbers, total_true_numbers,
-                                                                               true_positive_numbers / total_true_numbers))
-        log_file.write('False positive : {}/{} ({:.02f})\n'.format(false_positive_numbers, total_predicted_numbers,
-                                                                   false_positive_numbers / total_predicted_numbers))
-        log_file.write('Missed (Non-extracted) numbers : {}/{} ({:.02f})\n'.format(missed_numbers, total_true_numbers,
-                                                                                   missed_numbers / total_true_numbers))
-    if (CER is not None) and (counts_digits is not None) and (total_true_numbers is not None):
+        log_file.write('Total labels (groundtruth) : {}\n'.format(results_eval_digits['total_groundtruth']))
+        log_file.write('Total extracted boxes : {}\n'.format(results_eval_digits['total_predicted']))
+        log_file.write('True positive boxes : {}/{}\n'.format(results_eval_digits['true_positive_box'],
+                                                              results_eval_digits['total_groundtruth']))
+        log_file.write('False positive boxes : {}/{}\n'.format(results_eval_digits['false_positive_box'],
+                                                               results_eval_digits['total_predicted']))
+
+        log_file.write('** Recognition\n')
+        log_file.write('Correct recognized numbers : {}/{} ({:.02f}) \n'.format(results_eval_digits['true_positive_numbers'],
+                                                                      results_eval_digits['true_positive_box'],
+                                results_eval_digits['true_positive_numbers'] / results_eval_digits['true_positive_box']))
+        # log_file.write('Missed (Non-extracted) numbers : {}/{} ({:.02f})\n'.format(missed_numbers, total_true_numbers,
+        #                                                                         missed_numbers / total_true_numbers))
+    if (CER is not None) and (counts_digits is not None):
         log_file.write('Character Error Rate (CER) : {:.02f}\n'.format(CER))
-        log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(total_predicted_numbers, total_true_numbers,
-                                                                  total_predicted_numbers / total_true_numbers))
+
+        n_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
+        log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(n_partial_numbers,
+                                                                  results_eval_digits['total_groundtruth'],
+                                                        n_partial_numbers / results_eval_digits['total_groundtruth']))
         log_file.write(print_digit_counts(counts_digits))
 
     # Close file

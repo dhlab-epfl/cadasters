@@ -14,7 +14,7 @@ def evalutation_parcel_iou(parcels_groundtruth, dic_polygons, iou_thresh=0.8):
     """
     correct_poly = 0
     incorrect_poly = 0
-    final_img_poly = np.zeros(parcels_groundtruth.shape, dtype='uint8')
+    # final_img_poly = np.zeros(parcels_groundtruth.shape, dtype='uint8')
 
     for key, list_tup in dic_polygons.items():
         for tup in list_tup:
@@ -35,11 +35,9 @@ def evalutation_parcel_iou(parcels_groundtruth, dic_polygons, iou_thresh=0.8):
             union = cv2.bitwise_or(extracted_poly, gt_poly)
             IoU = np.sum(intersection.flatten()) / np.sum(union.flatten())
 
-            # print('IoU : {:.2f}'.format(IoU))
-
             if IoU >= iou_thresh:
                 correct_poly += 1
-                cv2.fillPoly(final_img_poly, tup[1], 255)
+                # cv2.fillPoly(final_img_poly, tup[1], 255)
             else:
                 incorrect_poly += 1
 
