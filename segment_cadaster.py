@@ -562,11 +562,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(namefile, 'wb') as handle:
             pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        # # Get filename ground truth
-        # path_eval_split = os.path.split(filename_cadaster_img)
-        # filename = '{}_digits_label_gt.png'.format(path_eval_split[1].split('.')[0])
-        # groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
-
         print('\t__Evaluation of ID recognition__')
         labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
 
