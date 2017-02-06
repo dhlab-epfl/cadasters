@@ -98,6 +98,7 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
     parcels = list()
     img2flood = img_frangi
     kernel_concav = np.ones((15, 15), np.uint8)
+    kernel_holes = np.ones((19, 19), np.uint8)
 
     # Find size of optimal kernel
     kernel = np.ones((3, 3), np.uint8)
@@ -133,6 +134,9 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
             # Dilate and erode to get a closed polygon (non concave)
             aprox_parcel = cv2.dilate(flooded_zone, kernel_concav, iterations=1)
             aprox_parcel = cv2.erode(aprox_parcel, kernel_concav, iterations=1)
+
+            # Closing to close small holes (smaller than 20x20)
+            aprox_parcel = cv2.morphologyEx(aprox_parcel, cv2.MORPH_CLOSE, kernel_holes)
 
             # Make a polygon of it
             tmp, cnt, tmp = cv2.findContours(aprox_parcel.copy(), cv2.RETR_CCOMP,
