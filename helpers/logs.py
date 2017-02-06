@@ -14,10 +14,12 @@ def write_log_file(filename, **kwargs):
     stop_criterion = kwargs.get('stop_criterion', None)
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
-    iou_thresh = kwargs.get('iou_thresh', None)
-    correct_poly = kwargs.get('correct_poly', None)
-    incorrect_poly = kwargs.get('incorrect_poly', None)
-    total_poly = kwargs.get('total_poly', None)
+    iou_thresh_parcels = kwargs.get('iou_thresh_parcels', None)
+    # correct_poly = kwargs.get('correct_poly', None)
+    # incorrect_poly = kwargs.get('incorrect_poly', None)
+    # total_poly = kwargs.get('total_poly', None)
+    results_eval_parcels = kwargs.get('results_eval_parcels', None)
+    iou_thresh_digits = kwargs.get('iou_thresh_digits', None)
     true_positive_numbers = kwargs.get('true_positive_numbers', None)
     false_positive_numbers = kwargs.get('false_positive_numbers', None)
     missed_numbers = kwargs.get('missed_numbers', None)
@@ -49,12 +51,19 @@ def write_log_file(filename, **kwargs):
     log_file.write('---- Classification ----\n')
     log_file.write('Classifier file: {}\n'.format(classifier_filename))
 
-    if correct_poly and total_poly and incorrect_poly:
+    if results_eval_parcels:
         log_file.write('---- Evaluation parcels ----\n')
-        log_file.write('Correct parcels : {}/{}\n'.format(correct_poly, total_poly))
-        log_file.write('Incorrect parcels : {}/{} \n'.format(incorrect_poly, total_poly))
-        log_file.write('Precision : {:.02f}\n'.format(correct_poly/(correct_poly+incorrect_poly)))
-        log_file.write('Recall : {:.02f}\n'.format(correct_poly/total_poly))
+        log_file.write('IoU threshold : {}\n'.format(iou_thresh_parcels))
+        log_file.write('Total parcels (groundtruth) : {}\n'.format(results_eval_parcels['total_groundtruth']))
+        log_file.write('Total extracted parcels : {}\n'.format(results_eval_parcels['total_extracted']))
+        log_file.write('True positives parcels : {}/{}  /  Precision : {:.02f}\n'.format(
+            results_eval_parcels['true_positive'], results_eval_parcels['total_grpundtruth'],
+            results_eval_parcels['precision']))
+        log_file.write('False positives parcels : {}/{}  /  Recall : {:.02f}\n'.format(
+            results_eval_parcels['false_positives'], results_eval_parcels['total_extracted'],
+            results_eval_parcels['recall']))
+        # log_file.write('Precision : {:.02f}\n'.format(results_eval_parcels['precision']))
+        # log_file.write('Recall : {:.02f}\n'.format(results_eval_parcels['recall']))
 
     try:
         # Calculate totals
@@ -68,7 +77,7 @@ def write_log_file(filename, **kwargs):
             (missed_numbers is not None) and (total_predicted_numbers is not None):
 
         log_file.write('---- Evaluation digits ----\n')
-        log_file.write('IoU threshold : {}\n'.format(iou_thresh))
+        log_file.write('IoU threshold : {}\n'.format(iou_thresh_digits))
         log_file.write('Correct recognized numbers : {}/{} ({:.02f})\n'.format(true_positive_numbers, total_true_numbers,
                                                                                true_positive_numbers / total_true_numbers))
         log_file.write('False positive : {}/{} ({:.02f})\n'.format(false_positive_numbers, total_predicted_numbers,
