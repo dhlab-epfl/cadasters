@@ -569,25 +569,17 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(namefile, 'wb') as handle:
             pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-<<<<<<< HEAD
-        print('\t__Evaluation of ID recognition__')
-=======
+
+        print('\t__Evaluation of ID localization and recognition__')
+
         # Evaluation
         results_evaluation_digits = dict()
->>>>>>> eval_digit_localization
         labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
-
-        # >>>>>>>>>>>>>>>>
-        # Open image and give a unique label to each identifier
-        image_identifiers_gt = cv2.imread(groundtruth_labels_digits_filename)
-        image_identifiers_gt = np.uint8(image_identifiers_gt[:, :, 0] > 128) * 255
-        n_labels_identifier, identifiers_labels = cv2.connectedComponents(image_identifiers_gt)
-        # >>>>>>>>>>>>>>>>>>>>
 
         # Localization, (IOU)
         iou_thresh_digits = 0.5
         results_evaluation_digits['true_positive_box'], results_evaluation_digits['false_positive_box'] \
-            = evaluation_digits_iou(identifiers_labels, final_boxes, iou_thresh=iou_thresh_digits)
+            = evaluation_digits_iou(labels_matrix, final_boxes, iou_thresh=iou_thresh_digits)
 
         results_evaluation_digits['true_positive_numbers'], results_evaluation_digits['false_positive_numbers'], \
             results_evaluation_digits['partial_numbers_results'] \
