@@ -147,7 +147,7 @@ def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers
 
     print('CER : {:.02f}'.format(CER))
 
-    print('Partial retrieval {}/{} (:.02f)'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
+    print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
 
     # Print results by number of correctly retrieved digit
     print(print_digit_counts(counts_digits))
@@ -157,3 +157,33 @@ def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers
 
     return CER, counts_digits
 
+
+def evaluation_digits_iou(digits_groundtruth, list_boxes, iou_thresh=0.6):
+
+    correct_box = 0
+    incorrect_box = 0
+
+    for box in list_boxes:
+
+        img_extracted_box = np.zeros(digits_groundtruth.shape, dtype='uint8')
+        cv2.drawContours(img_extracted_box, [box.original_box_pts], -1, 255, thickness=-1)
+        img_extracted_box_bin = img_extracted_box > 0
+
+        # Count which is the label that appears the most and consider that it is the label of the parcel
+        label_box = Counter(digits_groundtruth[img_extracted_box_bin]).most_common(1)[0][0]
+        if label_box == 0:
+            incorrect_box += 1
+            continue
+
+        # Compute intersection over union (IoU)
+        gt_box = np.uint8(digits_groundtruth == label_box) * 255
+        intersection = cv2.bitwise_and(img_extracted_box, gt_box)
+        union = cv2.bitwise_or(img_extracted_box, gt_box)
+        IoU = np.sum(intersection.flatten()) / np.sum(union.flatten())
+
+        if IoU >= iou_thresh:
+            correct_box += 1
+        else:
+            incorrect_box += 1
+
+    return correct_box, incorrect_box

@@ -19,7 +19,8 @@ from classification import node_classifier
 from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, evalutation_parcel_iou
 from text import find_text_boxes, find_false_box, \
     group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object, \
-    get_labelled_digits_matrix, evaluation_digit_recognition, interpret_digit_results
+    get_labelled_digits_matrix, evaluation_digits_iou, evaluation_digit_recognition, \
+    interpret_digit_results
 from ocr import recognize_number
 
 
@@ -240,25 +241,31 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(namefile, 'wb') as handle:
             pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        # Evaluate
-        # # Get filename
-        # path_eval_split = os.path.split(filename_cadaster_img)
-        # filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
-        # groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
         # Open image and give a unique label to each parcel
         image_parcels_gt = cv2.imread(groundtruth_parcels_filename)
         image_parcels_gt = np.uint8(image_parcels_gt[:, :, 0] > 128) * 255
         n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
 
         # Evaluate
-        print('\t --Evaluation polygon extraction --')
         iou_thresh_parcels = 0.7
         correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon,
                                                               iou_thresh=iou_thresh_parcels)
-        print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
-                                                                correct_poly / (n_labels_poly - 1)))
-        print('\t\tNumber incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
-        print('\t\tPrecision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
+
+        results_evaluation_parcels = {'total_groundtruth': n_labels_poly - 1 ,
+                                      'total_extracted': correct_poly + incorrect_poly,
+                                      'true_positive': correct_poly,
+                                      'false_positive': incorrect_poly,
+                                      'precision': correct_poly/(correct_poly+incorrect_poly),
+                                      'recall': correct_poly/(n_labels_poly - 1)
+                                      }
+
+        print('\t --Evaluation polygon extraction --')
+        print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.format(
+            results_evaluation_parcels['true_positive'], results_evaluation_parcels['total_groundtruth'],
+            results_evaluation_parcels['recall']))
+        print('\t\tNumber incorrect polygons : {}/{}'.format(results_evaluation_parcels['false_positive'],
+                                                             results_evaluation_parcels['total_extracted']))
+        print('\t\tPrecision : {:.02f}'.format(results_evaluation_parcels['precision']))
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
@@ -562,26 +569,56 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         with open(namefile, 'wb') as handle:
             pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+<<<<<<< HEAD
         print('\t__Evaluation of ID recognition__')
+=======
+        # Evaluation
+        results_evaluation_digits = dict()
+>>>>>>> eval_digit_localization
         labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
 
-        n_true_positives_numbers, \
-            n_false_positives_numbers, \
-            partial_numbers_results = evaluation_digit_recognition(labels_matrix,final_boxes)
+        # >>>>>>>>>>>>>>>>
+        # Open image and give a unique label to each identifier
+        image_identifiers_gt = cv2.imread(groundtruth_labels_digits_filename)
+        image_identifiers_gt = np.uint8(image_identifiers_gt[:, :, 0] > 128) * 255
+        n_labels_identifier, identifiers_labels = cv2.connectedComponents(image_identifiers_gt)
+        # >>>>>>>>>>>>>>>>>>>>
 
-        n_total_numbers = len(np.unique(labels_matrix)) - 1
-        n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
-        missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
+        # Localization, (IOU)
+        iou_thresh_digits = 0.5
+        results_evaluation_digits['true_positive_box'], results_evaluation_digits['false_positive_box'] \
+            = evaluation_digits_iou(identifiers_labels, final_boxes, iou_thresh=iou_thresh_digits)
 
-        print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
-                                                                      n_true_positives_numbers / n_total_numbers))
-        print('\tFalse positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
-                                                          n_false_positives_numbers / n_predicted_numbers))
-        print('\tMissed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
-                                                                          missed_numbers / n_total_numbers))
+        results_evaluation_digits['true_positive_numbers'], results_evaluation_digits['false_positive_numbers'], \
+            results_evaluation_digits['partial_numbers_results'] \
+            = evaluation_digit_recognition(labels_matrix, final_boxes)
 
-        CER, counts_digits = interpret_digit_results(n_true_positives_numbers, n_false_positives_numbers,
-                                                     partial_numbers_results, n_total_numbers)
+        results_evaluation_digits['total_groundtruth'] = len(np.unique(labels_matrix)) - 1
+        results_evaluation_digits['total_predicted'] = len(final_boxes)
+        # missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
+
+        print('\t__Evaluation of ID localization')
+        print('\tCorrect localized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_box'],
+              results_evaluation_digits['total_groundtruth'],
+              results_evaluation_digits['true_positive_box'] / results_evaluation_digits['total_groundtruth']))
+        print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
+              results_evaluation_digits['total_predicted'],
+              results_evaluation_digits['false_positive_numbers'] / results_evaluation_digits['total_predicted']))
+
+
+        print('\t__Evaluation of ID recognition__')
+        print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_numbers'],
+                                                                      results_evaluation_digits['total_groundtruth'],
+                    results_evaluation_digits['true_positive_numbers'] / results_evaluation_digits['total_groundtruth']))
+        print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
+                                                          results_evaluation_digits['total_predicted'],
+                    results_evaluation_digits['false_positive_numbers'] / results_evaluation_digits['total_predicted']))
+        # print('\tMissed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
+        #                                                                   missed_numbers / n_total_numbers))
+        CER, counts_digits = interpret_digit_results(results_evaluation_digits['true_positive_numbers'],
+                                                     results_evaluation_digits['false_positive_numbers'],
+                                                     results_evaluation_digits['partial_numbers_results'],
+                                                     results_evaluation_digits['total_groundtruth'])
 
     #
     # LOG FILE
@@ -597,11 +634,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
                        similarity_method=similarity_method, stop_criterion=stop_criterion,
-                       iou_thresh=iou_thresh_parcels, correct_poly=correct_poly, incorrect_poly=incorrect_poly,
-                       total_poly=n_labels_poly-1,
-                       true_positive_numbers=n_true_positives_numbers, false_positive_numbers=n_false_positives_numbers,
-                       missed_numbers=missed_numbers, total_predicted_numbers=n_predicted_numbers,
-                       CER=CER, counts_digits=counts_digits)
+                       iou_thresh_parcels=iou_thresh_parcels, results_eval_parcels=results_evaluation_parcels,
+                       results_eval_digits=results_evaluation_digits, CER=CER, counts_digits=counts_digits)
     else:
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
