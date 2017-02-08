@@ -37,13 +37,13 @@ __merged superpixels__ : shows the result of the merging process (better over-se
 * Python 3.5
 
 ### Dependencies
-* networkx 
-* geojson
+* networkx `pip install networkx`
+* geojson `pip install geojson`
+* cv2 `conda install -c menpo opencv3=3.2.0`
+* colormath `pip install colormath`
+* uuid `pip install uuid`
+* tensorflow `pip install tensorflow`
 * json
-* cv2
-* skimage
-* sklearn
-* colormath
-* uuid
-* tensorflow
+* scikit-kimage
+* scikit-learn
 
