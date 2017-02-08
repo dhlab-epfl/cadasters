@@ -573,18 +573,34 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         results_evaluation_digits = dict()
         labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
 
+        # >>>>>>>>>>>>>>>>
+        # Open image and give a unique label to each identifier
+        image_identifiers_gt = cv2.imread(groundtruth_labels_digits_filename)
+        image_identifiers_gt = np.uint8(image_identifiers_gt[:, :, 0] > 128) * 255
+        n_labels_identifier, identifiers_labels = cv2.connectedComponents(image_identifiers_gt)
+        # >>>>>>>>>>>>>>>>>>>>
+
         # Localization, (IOU)
         iou_thresh_digits = 0.5
         results_evaluation_digits['true_positive_box'], results_evaluation_digits['false_positive_box'] \
-            = evaluation_digits_iou(labels_matrix, final_boxes, iou_thresh=iou_thresh_digits)
+            = evaluation_digits_iou(identifiers_labels, final_boxes, iou_thresh=iou_thresh_digits)
 
-        results_evaluation_digits['true_positive_numbers'], results_evaluation_digits['false_positive_numbers'],
-        results_evaluation_digits['partial_numbers_results'] \
-            = evaluation_digit_recognition(labels_matrix,final_boxes)
+        results_evaluation_digits['true_positive_numbers'], results_evaluation_digits['false_positive_numbers'], \
+            results_evaluation_digits['partial_numbers_results'] \
+            = evaluation_digit_recognition(labels_matrix, final_boxes)
 
         results_evaluation_digits['total_groundtruth'] = len(np.unique(labels_matrix)) - 1
         results_evaluation_digits['total_predicted'] = len(final_boxes)
         # missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
+
+        print('\t__Evaluation of ID localization')
+        print('\tCorrect localized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_box'],
+              results_evaluation_digits['total_groundtruth'],
+              results_evaluation_digits['true_positive_box'] / results_evaluation_digits['total_groundtruth']))
+        print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
+              results_evaluation_digits['total_predicted'],
+              results_evaluation_digits['false_positive_numbers'] / results_evaluation_digits['total_predicted']))
+
 
         print('\t__Evaluation of ID recognition__')
         print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_numbers'],

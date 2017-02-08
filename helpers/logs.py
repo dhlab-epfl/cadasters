@@ -58,10 +58,10 @@ def write_log_file(filename, **kwargs):
         log_file.write('Total parcels (groundtruth) : {}\n'.format(results_eval_parcels['total_groundtruth']))
         log_file.write('Total extracted parcels : {}\n'.format(results_eval_parcels['total_extracted']))
         log_file.write('True positives parcels : {}/{}  /  Precision : {:.02f}\n'.format(
-            results_eval_parcels['true_positive'], results_eval_parcels['total_grpundtruth'],
+            results_eval_parcels['true_positive'], results_eval_parcels['total_groundtruth'],
             results_eval_parcels['precision']))
         log_file.write('False positives parcels : {}/{}  /  Recall : {:.02f}\n'.format(
-            results_eval_parcels['false_positives'], results_eval_parcels['total_extracted'],
+            results_eval_parcels['false_positive'], results_eval_parcels['total_extracted'],
             results_eval_parcels['recall']))
         # log_file.write('Precision : {:.02f}\n'.format(results_eval_parcels['precision']))
         # log_file.write('Recall : {:.02f}\n'.format(results_eval_parcels['recall']))

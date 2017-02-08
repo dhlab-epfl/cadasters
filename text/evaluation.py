@@ -147,7 +147,7 @@ def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers
 
     print('CER : {:.02f}'.format(CER))
 
-    print('Partial retrieval {}/{} (:.02f)'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
+    print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
 
     # Print results by number of correctly retrieved digit
     print(print_digit_counts(counts_digits))
@@ -166,10 +166,11 @@ def evaluation_digits_iou(digits_groundtruth, list_boxes, iou_thresh=0.6):
     for box in list_boxes:
 
         img_extracted_box = np.zeros(digits_groundtruth.shape, dtype='uint8')
-        cv2.drawContours(img_extracted_box, [box.box_pts], 0, 255, thickness=-1)
+        cv2.drawContours(img_extracted_box, [box.original_box_pts], -1, 255, thickness=-1)
+        img_extracted_box_bin = img_extracted_box > 0
 
         # Count which is the label that appears the most and consider that it is the label of the parcel
-        label_box = Counter(digits_groundtruth[img_extracted_box > 0]).most_common(1)[0][0]
+        label_box = Counter(digits_groundtruth[img_extracted_box_bin]).most_common(1)[0][0]
         if label_box == 0:
             incorrect_box += 1
             continue
