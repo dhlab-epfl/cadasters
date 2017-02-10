@@ -15,16 +15,10 @@ def write_log_file(filename, **kwargs):
     elapsed_time = kwargs.get('elapsed_time', None)
     classifier_filename = kwargs.get('classifier_filename', None)
     iou_thresh_parcels = kwargs.get('iou_thresh_parcels', None)
-    # correct_poly = kwargs.get('correct_poly', None)
-    # incorrect_poly = kwargs.get('incorrect_poly', None)
-    # total_poly = kwargs.get('total_poly', None)
-    results_eval_parcels = kwargs.get('results_eval_parcels', None)
+    res_parcels = kwargs.get('results_eval_parcels', None)
     iou_thresh_digits = kwargs.get('iou_thresh_digits', None)
-    # true_positive_numbers = kwargs.get('true_positive_numbers', None)
-    # false_positive_numbers = kwargs.get('false_positive_numbers', None)
-    # missed_numbers = kwargs.get('missed_numbers', None)
-    # total_predicted_numbers = kwargs.get('total_predicted_numbers', None)
-    results_eval_digits = kwargs.get('results_eval_digits', None)
+    inter_thresh_digits = kwargs.get('inter_thresh_digits', None)
+    res_digits = kwargs.get('results_eval_digits', None)
     CER = kwargs.get('CER', None)
     counts_digits = kwargs.get('counts_digits', None)
 
@@ -52,37 +46,45 @@ def write_log_file(filename, **kwargs):
     log_file.write('---- Classification ----\n')
     log_file.write('Classifier file: {}\n'.format(classifier_filename))
 
-    if results_eval_parcels:
+    if res_parcels:
         log_file.write('---- Evaluation parcels ----\n')
         log_file.write('IoU threshold : {}\n'.format(iou_thresh_parcels))
-        log_file.write('Total parcels (groundtruth) : {}\n'.format(results_eval_parcels['total_groundtruth']))
-        log_file.write('Total extracted parcels : {}\n'.format(results_eval_parcels['total_extracted']))
-        log_file.write('True positives parcels : {}/{}  /  Precision : {:.02f}\n'.format(
-            results_eval_parcels['true_positive'], results_eval_parcels['total_groundtruth'],
-            results_eval_parcels['precision']))
-        log_file.write('False positives parcels : {}/{}  /  Recall : {:.02f}\n'.format(
-            results_eval_parcels['false_positive'], results_eval_parcels['total_extracted'],
-            results_eval_parcels['recall']))
+        log_file.write('Total parcels (groundtruth) : {}\n'.format(res_parcels['total_groundtruth']))
+        log_file.write('Total extracted parcels : {}\n'.format(res_parcels['total_extracted']))
+        log_file.write('True positives parcels : {}/{}  /  Precision : {:.02f}\n'
+            .format(res_parcels['true_positive'],
+                    res_parcels['total_groundtruth'],
+                    res_parcels['precision']))
+        log_file.write('False positives parcels : {}/{}  /  Recall : {:.02f}\n'
+            .format(res_parcels['false_positive'],
+                    res_parcels['total_extracted'],
+                    res_parcels['recall']))
         # log_file.write('Precision : {:.02f}\n'.format(results_eval_parcels['precision']))
         # log_file.write('Recall : {:.02f}\n'.format(results_eval_parcels['recall']))
 
-    if results_eval_digits:
+    if res_digits:
 
         log_file.write('---- Evaluation digits ----\n')
 
         log_file.write('** Localization\n')
-        log_file.write('IoU threshold : {}\n'.format(iou_thresh_digits))
-        log_file.write('Total labels (groundtruth) : {}\n'.format(results_eval_digits['total_groundtruth']))
-        log_file.write('Total extracted boxes : {}\n'.format(results_eval_digits['total_predicted']))
-        log_file.write('True positive boxes : {}/{}\n'.format(results_eval_digits['true_positive_box'],
-                                                              results_eval_digits['total_groundtruth']))
-        log_file.write('False positive boxes : {}/{}\n'.format(results_eval_digits['false_positive_box'],
-                                                               results_eval_digits['total_predicted']))
+        log_file.write('Total labels (groundtruth) : {}\n'.format(res_digits['total_groundtruth']))
+        log_file.write('Total extracted boxes : {}\n'.format(res_digits['total_predicted']))
+        log_file.write('> IoU threshold : {}\n'.format(iou_thresh_digits))
+        log_file.write('True positive boxes : {}/{}\n'.format(res_digits['true_positive_box_iou'],
+                                                              res_digits['total_groundtruth']))
+        log_file.write('False positive boxes : {}/{}\n'.format(res_digits['false_positive_box_iou'],
+                                                               res_digits['total_predicted']))
+
+        log_file.write('> Intersection threshold : {}\n'.format(inter_thresh_digits))
+        log_file.write('True positive boxes : {}/{}\n'.format(res_digits['true_positive_box_inter'],
+                                                              res_digits['total_groundtruth']))
+        log_file.write('False positive boxes : {}/{}\n'.format(res_digits['false_positive_box_inter'],
+                                                               res_digits['total_predicted']))
 
         log_file.write('** Recognition\n')
-        log_file.write('Correct recognized numbers : {}/{} ({:.02f}) \n'.format(results_eval_digits['true_positive_numbers'],
-                                                                      results_eval_digits['true_positive_box'],
-                                results_eval_digits['true_positive_numbers'] / results_eval_digits['true_positive_box']))
+        log_file.write('Correct recognized numbers : {}/{} ({:.02f}) \n'.format(res_digits['true_positive_numbers'],
+                                                                      res_digits['true_positive_box_inter'],
+                                res_digits['true_positive_numbers'] / res_digits['true_positive_box_inter']))
         # log_file.write('Missed (Non-extracted) numbers : {}/{} ({:.02f})\n'.format(missed_numbers, total_true_numbers,
         #                                                                         missed_numbers / total_true_numbers))
     if (CER is not None) and (counts_digits is not None):
@@ -90,8 +92,8 @@ def write_log_file(filename, **kwargs):
 
         n_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
         log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(n_partial_numbers,
-                                                                  results_eval_digits['total_groundtruth'],
-                                                        n_partial_numbers / results_eval_digits['total_groundtruth']))
+                                                                  res_digits['total_groundtruth'],
+                                                        n_partial_numbers / res_digits['total_groundtruth']))
         log_file.write(print_digit_counts(counts_digits))
 
     # Close file
