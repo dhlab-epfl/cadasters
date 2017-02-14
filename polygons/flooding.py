@@ -153,7 +153,8 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
                 poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
 
             myFeaturePoly = Feature(geometry=Polygon([poly_points]),
-                                    properties={"uuid": uid, "node": str(node_graph)})
+                                    properties={"uuid": uid})
+                                    # properties={"uuid": uid, "node": str(node_graph)})
             listFeatPolygon.append(myFeaturePoly)
 
             # Find zones that have not been flooded (in case a node include two distinct zones to flood)
