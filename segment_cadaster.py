@@ -221,7 +221,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
     except FileNotFoundError:
         listFeatPolygon, dic_polygon = find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
-                                                ksize_flooding)
+                                                ksize_flooding, filename_cadaster_img)
         if debug:
             with open(savefile_listpoly, 'wb') as handle:
                 pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -263,7 +263,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
-    savePolygons(listFeatPolygon, filename_geoJson)
+    savePolygons(listFeatPolygon, filename_geoJson, filename_cadaster_img)
 
     if show_plots:
         # Show ridge image for flooding

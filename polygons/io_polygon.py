@@ -2,10 +2,24 @@ import geojson
 from geojson import FeatureCollection
 import cv2
 import numpy as np
+import gdal
+import re
 
-def savePolygons(listPolygon, namesavefile):
-     # Object to save
-    collectionPolygons = FeatureCollection([poly for poly in listPolygon])
+
+def savePolygons(listPolygon, namesavefile, filename_cadaster_img):
+    # Projection reference
+    ds = gdal.Open(filename_cadaster_img)
+    toks = re.search('AUTHORITY\[\".*,.*\"\],', ds.GetProjectionRef()) \
+               .group()[len('AUTHORITY[\"'):-len('\"],')] \
+               .split('\"')
+    crs = {"type": "name",
+           "properties": {
+               "name": "urn:ogc:def:crs:{}::{}".format(toks[0], toks[2])
+                          }
+           },
+
+    # Object to save
+    collectionPolygons = FeatureCollection([poly for poly in listPolygon], crs=crs)
 
     # Save file
     with open(namesavefile, 'w') as outfile:

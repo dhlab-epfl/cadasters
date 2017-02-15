@@ -2,9 +2,11 @@ import numpy as np
 import cv2
 from .flooding import Polygon2geoJSON
 from .flooding import clean_image_ridge
+from geojson import Feature, Polygon
+from osgeo import gdal
 
 
-def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_flooding):
+def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_flooding, img_filename):
     """
     Given the possible 'background' regions, finds the parcels by flooding the regions
     and returns the found polygons as GEOJSON file and opencv format. Also matches an uuid
@@ -18,6 +20,19 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
             dic_polygon: dictionary with node graphs as keys and
                         tuple of (uuid, list of polygons in cv2 format) as values
     """
+
+    # Georeferencing for geojson (will have no effect if no geographic metadata is found)
+    #     From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
+    #     In a north up image, geo_transform[1] is the pixel width,
+    #     and geo_transform[5] is the pixel height.
+    #     The upper left corner of the upper left pixel is at position (geo_transform[0], geo_transform[3]).
+    #     Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
+    #     Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
+    ds = gdal.Open(img_filename)
+    geo_transform = ds.GetGeoTransform()
+    # # Coordinate system
+    # ds.GetProjectionRef()
+
 
     # List to be updated during loop
     listFeatPolygon = list()
@@ -41,13 +56,24 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
             poly.append(cv2.approxPolyDP(c, epsilon, closed=True))
 
         # Flooding of area to get fitted polygon
-        parcel = Polygon2geoJSON(poly, listFeatPolygon, bgn, ridges, ksize_kernel_flooding)
+        parcels = Polygon2geoJSON(poly, ridges, ksize_kernel_flooding)
 
-        # G.node[bgn]['polygon'] = parcel
-        dic_polygon[bgn] = parcel
+        dic_polygon[bgn] = parcels
 
-#       # Convex hull
-#       hull = cv2.convexHull(poly)
+        # Transform polygon parcel to geoJSON Polygon format
+        poly_points = list()
+        for (uuid, poly) in parcels:
+            poly_points = list()
+            for pt in poly[0]:
+                ptx = float(pt[0, 0])
+                pty = float(pt[0, 1])
+                geo_ptx = geo_transform[0] + ptx * geo_transform[1] + pty * geo_transform[2]
+                geo_pty = geo_transform[3] + ptx * geo_transform[4] + pty * geo_transform[5]
+                poly_points.append((geo_ptx, geo_pty))
+            if poly_points:
+                myFeaturePoly = Feature(geometry=Polygon([poly_points]),
+                                        properties={"uuid": uuid})
+                listFeatPolygon.append(myFeaturePoly)
 
     return listFeatPolygon, dic_polygon
 
