@@ -74,13 +74,12 @@ def clean_image_ridge(img_ridge, ksize):
 # ---------------------------------------------------------------------------------------
 
 
-def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
+def Polygon2geoJSON(polyCV2, img_frangi, offset):
     """
     Given a ridge image and the contours of a possible polygon, runs the floodfill
     algorithm taking as seed point a pixel inside the possible parcel.
 
     :param polyCV2: polygon in openCV format (aproxPolyDP output)
-    :param node_graph: id of graph node corresponding to polygon
     :param img_frangi: ridge image
     :param offset: offset corresponding to the difference between original ridge image and cropped one.
                 This is used to realign coordinates of cropped ridge image with original coordinates
@@ -147,14 +146,14 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
             uid = str(uuid.uuid4())
             parcels.append((uid, aprox_parcel))
 
-            # Transform polygon aproxParcel to geoJSON Polygon format
-            poly_points = list()
-            for c in aprox_parcel:
-                poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
-
-            myFeaturePoly = Feature(geometry=Polygon([poly_points]),
-                                    properties={"uuid": uid, "node": str(node_graph)})
-            listFeatPolygon.append(myFeaturePoly)
+            # # Transform polygon aproxParcel to geoJSON Polygon format
+            # poly_points = list()
+            # for c in aprox_parcel:
+            #     poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
+            #
+            # myFeaturePoly = Feature(geometry=Polygon([poly_points]),
+            #                         properties={"uuid": uid})
+            # listFeatPolygon.append(myFeaturePoly)
 
             # Find zones that have not been flooded (in case a node include two distinct zones to flood)
             non_flooded_zones = (1*(seedmask > 0) - 1*(flooded_zone > 0)) > 0
@@ -170,31 +169,3 @@ def Polygon2geoJSON(polyCV2, listFeatPolygon, node_graph, img_frangi, offset):
 
     return parcels
 # -------------------------------------------------------------------------------------
-
-
-# def DicPolygons2geoJSON(dic_polygons, img_frangi, namesavefile):
-#
-#     # Raw Polygons from graph
-#     # ---------
-#     polygons = [dic_polygons[p] for p in dic_polygons.keys()]
-#     idnodes = [n for n in dic_polygons.keys()]
-#
-#     # Prepare ridge image
-#     # -------------------
-#     kernel_size = 3 # Size of the kernel for opening and closing, and also width of the removed border of the image
-#     offset = kernel_size # offset that will be added to align cropped image coordinates with original coordinates
-#     img_frangi, mask = compute_images_for_flooding(img_frangi, kernel_size)
-#
-#     # Zones/polygons to export
-#     listPolygon = list()
-#
-#     # Params
-#     kernel = np.ones((6,6),np.uint8)
-#
-#     # Graph node id corresponding to the processed polygon
-#     id = 0
-#     for pol in polygons:
-#         parcels = Polygon2geoJSON(pol, listPolygon, idnodes[id], img_frangi, mask, kernel, offset)
-#         id += 1
-#
-#     savePolygons(listPolygon, namesavefile)
