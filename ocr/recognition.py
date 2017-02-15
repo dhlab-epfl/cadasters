@@ -1,12 +1,11 @@
 import tensorflow as tf
-import os
 import cv2
 import numpy as np
-from .cnn import inference
+from .cnn import inference, inference_fc1
 from ocr_image_processing import binarize_with_preprocess, preprocess_digit, segment_number
 from .helpers import get_absolute_path
 
-TF_MODEL = get_absolute_path('../data/models/mixed-model-net2/mixed-inf2')
+TF_MODEL = get_absolute_path('../data/models/net2/mixed-model-net2/mixed-inf2')
 
 
 # Currently we reconstruct the graph and reload the model each time we try te recognize a number, this is not efficient!
@@ -16,7 +15,10 @@ def recognize_digits(digits, tf_model):
         X = tf.placeholder(tf.float32, [None, 784])
         keep_prob = tf.placeholder(tf.float32)
 
-        y_pred = inference(X, keep_prob)
+        if tf_model.find('net2') > 0:
+            y_pred = inference(X, keep_prob)
+        else:
+            y_pred = inference_fc1(X, keep_prob)
 
         saver = tf.train.Saver()
         sess = tf.Session()

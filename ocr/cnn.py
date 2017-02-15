@@ -68,6 +68,45 @@ def inference(X, keep_prob):
         y_infer = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 
     return y_infer
+# -------------------------------------------------------------
+
+
+def inference_fc1(X, keep_prob):
+    with tf.name_scope('reshape_input'):
+        X_image = tf.reshape(X, [-1, 28, 28, 1])
+
+    with tf.name_scope('conv1'):
+        weights = weight_variable([5, 5, 1, 32])
+        biases = bias_variable([32])
+
+        conv1 = tf.nn.relu(conv2d(X_image, weights) + biases)
+        pool1 = max_pool_2x2(conv1)
+
+    with tf.name_scope('conv2'):
+        weights = weight_variable([5, 5, 32, 64])
+        biases = bias_variable([64])
+
+        conv2 = tf.nn.relu(conv2d(pool1, weights) + biases)
+        pool2 = max_pool_2x2(conv2)
+
+    with tf.name_scope('fully_connected'):
+        weights = weight_variable([7*7*64, 1024])
+        biases = bias_variable([1024])
+
+        pool2_flat = tf.reshape(pool2, [-1, 7*7*64])
+        fully_connected = tf.nn.relu(tf.matmul(pool2_flat, weights) + biases)
+
+    with tf.name_scope('dropout'):
+        dropout = tf.nn.dropout(fully_connected, keep_prob)
+
+    with tf.name_scope('softmax_linear'):
+        weights = weight_variable([1024, 10])
+        biases = bias_variable([10])
+
+        y_pred = tf.nn.softmax(tf.matmul(dropout, weights) + biases)
+
+    return y_pred
+# -------------------------------------------------------------
 
 
 def accuracy_evaluation(y_pred, y_true):
