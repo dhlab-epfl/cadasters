@@ -16,10 +16,9 @@ from helpers import show_superpixels, show_polygons, show_class, show_boxes, \
     padding, rotate_image, write_log_file
 from graph import edge_cut_minimize_std, assign_feature_to_node, generate_vertices_and_edges
 from classification import node_classifier
-from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, evalutation_parcel_iou
+from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, global_evaluation_parcels
 from text import find_text_boxes, find_false_box, \
-    group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object, \
-    get_labelled_digits_matrix, evaluation_digit_recognition, interpret_digit_results
+    group_box_with_lbl, group_box_with_isolates, crop_box, find_orientation, crop_object, global_digit_evaluation
 from ocr import recognize_number
 
 
@@ -228,39 +227,20 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             with open(savefile_dicpoly, 'wb') as handle:
                 pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print('\t Debug Mode : {} and {} files saved'.format(os.path.split(savefile_listpoly)[-1],
-                                                                  os.path.split(savefile_dicpoly)[-1]))
+                                                                 os.path.split(savefile_dicpoly)[-1]))
 
-
+    #
     # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
     #       the small one is on top and is accessible by clicking
 
     if evaluation:
-        # Save polygons coordinates for evaluation
-        namefile = os.path.join(output_path, 'dic_polygons.pkl')
-        with open(namefile, 'wb') as handle:
-            pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
         # Evaluate
-        # # Get filename
-        # path_eval_split = os.path.split(filename_cadaster_img)
-        # filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
-        # groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
-        # Open image and give a unique label to each parcel
-        image_parcels_gt = cv2.imread(groundtruth_parcels_filename)
-        image_parcels_gt = np.uint8(image_parcels_gt[:, :, 0] > 128) * 255
-        n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
-
-        # Evaluate
-        print('\t --Evaluation polygon extraction --')
         iou_thresh_parcels = 0.7
-        correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon,
-                                                              iou_thresh=iou_thresh_parcels)
-        print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.format(correct_poly, n_labels_poly - 1,
-                                                                correct_poly / (n_labels_poly - 1)))
-        print('\t\tNumber incorrect polygons : {}/{}'.format(incorrect_poly, correct_poly + incorrect_poly))
-        print('\t\tPrecision : {:.02f}'.format(correct_poly/(correct_poly+incorrect_poly)))
+        results_evaluation_parcels = global_evaluation_parcels(dic_polygon, groundtruth_parcels_filename,
+                                                               iou_thresh_parcels=iou_thresh_parcels)
 
+    #
     # Export geoJSON
     filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
     savePolygons(listFeatPolygon, filename_geoJson, filename_cadaster_img)
@@ -467,128 +447,106 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
             show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
 
+
+        #
+        # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
+        #
+        print('__PROCESS BOX (ID RECOGNITION)__')
+        # -------------------------------------
+        # Create directory to save digits image
+        path_digits = os.path.join(output_path, 'digits')
+        if not os.path.exists(path_digits):
+            os.makedirs(path_digits)
+
+        for box in final_boxes:
+            # Expand box
+            box.expand_box(padding=2)
+
+            # Crop
+            crop_imgL, (xmin, xmax, ymin, ymax) = crop_box(box, dict_features['Lab'][:, :, 0])
+            cropped_number = img[ymin:ymax + 1, xmin:xmax + 1].copy()
+
+            # Binarize to have the general shape so that we can dilate it as a
+            # blob and find the orientation of the blob
+
+            # Binarization
+            blur = cv2.GaussianBlur(crop_imgL, (3, 3), 0)
+            ret, binary_crop = cv2.threshold(blur, 0, np.max(crop_imgL), cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            inv_crop = np.uint8(255 * (binary_crop < 1))
+            # Morphology _ dilation
+            dilated = cv2.dilate(inv_crop, np.ones((5, 5), np.uint8))
+            # Find orientation with PCA
+            center, eigvect, angle = find_orientation(dilated)
+
+            # Plot orientation
+            # if show_plots:
+            #     img2draw = inv_crop.copy()
+            #     filename = os.path.join(path_digits, '{}_orientation.jpg'.format(box.box_id))
+            #     show_orientation(img2draw, eigvect, center, filename=filename)
+
+            # Rotate image to align it horizontally
+            img_pad = padding(inv_crop, 0)
+            rotated_img = rotate_image(img_pad, angle)
+
+            # Recrop image
+            final_digit_bin, (y, x, h, w) = crop_object(rotated_img)
+            # final_digit_bin = final_digit_bin > 1  # >>>>> NOT SURE USEFUL
+            # Morphology _ erosion
+            # final_digit_bin = cv2.erode(final_digit_bin, np.ones((5, 5), np.uint8))
+
+            # Format image to be saved into 3 channel uint8
+            # final_digit_bin = np.uint8(255 * final_digit_bin)
+            # formated_digit_img = np.dstack([final_digit_bin] * 3)
+
+            # Rotate original image
+            rotated_number = rotate_image(padding(cropped_number, 255), angle)
+            rotated_number = rotated_number[x:x + w, y:y + h, :]
+
+            # RECOGNIZING NUMBERS
+            # --------------------
+            # Number of digits per number  <<<<<< find a way to estimate before recognition
+            # final_skelton = skeletonize(final_digit_bin)
+            # projx = np.sum(final_skelton > 0, axis=0)
+            # More than 2 pixels per colums non zero, digits is composed of at least 4 columns
+            # number_of_digits = find_pattern(projx > 2, [True] * 4)
+            number_of_digits = 4
+            prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits)
+            try:
+                box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
+            except TypeError:  # Delete box
+                ind = final_boxes.index(box)
+                final_boxes[ind] = []
+                continue
+
+            # Save in JSON file
+            data = OrderedDict([('number', prediction), ('confidence', proba)])
+            filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
+            with open(filename_json, 'w') as fjson:
+                json.dump(data, fjson)
+
+            # Save cropped image
+            if show_plots:
+                # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
+                cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
+                            rotated_number)
+
+        # Remove empty items from list
+        final_boxes = [b for b in final_boxes if b]
+
         if debug:
             with open(savefile_boxes, 'wb') as handle:
                 pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print('\t Debug Mode : {} file saved'.format(os.path.split(savefile_boxes)[-1]))
 
     #
-    # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
-    #
-    print('__PROCESS BOX (ID RECOGNITION)__')
-    # -------------------------------------
-    # Create directory to save digits image
-    path_digits = os.path.join(output_path, 'digits')
-    if not os.path.exists(path_digits):
-        os.makedirs(path_digits)
-
-    for box in final_boxes:
-        # Expand box
-        box.expand_box(padding=2)
-
-        # Crop
-        crop_imgL, (xmin, xmax, ymin, ymax) = crop_box(box, dict_features['Lab'][:, :, 0])
-        cropped_number = img[ymin:ymax + 1, xmin:xmax + 1].copy()
-
-        # Binarize to have the general shape so that we can dilate it as a
-        # blob and find the orientation of the blob
-
-        # Binarization
-        blur = cv2.GaussianBlur(crop_imgL, (3, 3), 0)
-        ret, binary_crop = cv2.threshold(blur, 0, np.max(crop_imgL), cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        inv_crop = np.uint8(255 * (binary_crop < 1))
-        # Morphology _ dilation
-        dilated = cv2.dilate(inv_crop, np.ones((5, 5), np.uint8))
-        # Find orientation with PCA
-        center, eigvect, angle = find_orientation(dilated)
-
-        # Plot orientation
-        # if show_plots:
-        #     img2draw = inv_crop.copy()
-        #     filename = os.path.join(path_digits, '{}_orientation.jpg'.format(box.box_id))
-        #     show_orientation(img2draw, eigvect, center, filename=filename)
-
-        # Rotate image to align it horizontally
-        img_pad = padding(inv_crop, 0)
-        rotated_img = rotate_image(img_pad, angle)
-
-        # Recrop image
-        final_digit_bin, (y, x, h, w) = crop_object(rotated_img)
-        # final_digit_bin = final_digit_bin > 1  # >>>>> NOT SURE USEFUL
-        # Morphology _ erosion
-        # final_digit_bin = cv2.erode(final_digit_bin, np.ones((5, 5), np.uint8))
-
-        # Format image to be saved into 3 channel uint8
-        # final_digit_bin = np.uint8(255 * final_digit_bin)
-        # formated_digit_img = np.dstack([final_digit_bin] * 3)
-
-        # Rotate original image
-        rotated_number = rotate_image(padding(cropped_number, 255), angle)
-        rotated_number = rotated_number[x:x + w, y:y + h, :]
-
-        # RECOGNIZING NUMBERS
-        # --------------------
-        # Number of digits per number  <<<<<< find a way to estimate before recognition
-        # final_skelton = skeletonize(final_digit_bin)
-        # projx = np.sum(final_skelton > 0, axis=0)
-        # More than 2 pixels per colums non zero, digits is composed of at least 4 columns
-        # number_of_digits = find_pattern(projx > 2, [True] * 4)
-        number_of_digits = 4
-        prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits, tf_model=tf_model)
-        try:
-            box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
-        except TypeError:  # Delete box
-            ind = final_boxes.index(box)
-            final_boxes[ind] = []
-            continue
-
-        # Save in JSON file
-        data = OrderedDict([('number', prediction), ('confidence', proba)])
-        filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
-        with open(filename_json, 'w') as fjson:
-            json.dump(data, fjson)
-
-        # Save cropped image
-        if show_plots:
-            # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
-            cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
-                        rotated_number)
-
-    # Remove empty items from list
-    final_boxes = [b for b in final_boxes if b]
-
     # Evaluation of predicted digits
     if evaluation:
-        namefile = os.path.join(output_path, 'list_finalboxes.pkl')
-        with open(namefile, 'wb') as handle:
-            pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        # # Get filename ground truth
-        # path_eval_split = os.path.split(filename_cadaster_img)
-        # filename = '{}_digits_label_gt.png'.format(path_eval_split[1].split('.')[0])
-        # groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
-
-        print('\t__Evaluation of ID recognition__')
-        labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
-
-        n_true_positives_numbers, \
-            n_false_positives_numbers, \
-            partial_numbers_results = evaluation_digit_recognition(labels_matrix,final_boxes)
-
-        n_total_numbers = len(np.unique(labels_matrix)) - 1
-        n_predicted_numbers = n_true_positives_numbers + n_false_positives_numbers + len(final_boxes)
-        missed_numbers = n_total_numbers - (len(final_boxes) - n_false_positives_numbers)
-
-        print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(n_true_positives_numbers, n_total_numbers,
-                                                                      n_true_positives_numbers / n_total_numbers))
-        print('\tFalse positive : {}/{} ({:.02f})'.format(n_false_positives_numbers, n_predicted_numbers,
-                                                          n_false_positives_numbers / n_predicted_numbers))
-        print('\tMissed (non-extracted) numbers : {}/{} ({:.02f})'.format(missed_numbers, n_total_numbers,
-                                                                          missed_numbers / n_total_numbers))
-
-        CER, counts_digits = interpret_digit_results(n_true_positives_numbers, n_false_positives_numbers,
-                                                     partial_numbers_results, n_total_numbers)
-
+        iou_thresh_digits = 0.5
+        inter_thresh_digits = 0.7
+        results_evaluation_digits, \
+            CER, counts_digits = global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
+                                                         iou_thresh=iou_thresh_digits,
+                                                         inter_thresh=inter_thresh_digits)
     #
     # LOG FILE
     #
@@ -602,12 +560,10 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
-                       similarity_method=similarity_method, stop_criterion=stop_criterion, digit_tf_model=tf_model,
-                       iou_thresh=iou_thresh_parcels, correct_poly=correct_poly, incorrect_poly=incorrect_poly,
-                       total_poly=n_labels_poly-1,
-                       true_positive_numbers=n_true_positives_numbers, false_positive_numbers=n_false_positives_numbers,
-                       missed_numbers=missed_numbers, total_predicted_numbers=n_predicted_numbers,
-                       CER=CER, counts_digits=counts_digits)
+                       similarity_method=similarity_method, stop_criterion=stop_criterion,
+                       iou_thresh_parcels=iou_thresh_parcels, results_eval_parcels=results_evaluation_parcels,
+                       iou_thresh_digits=iou_thresh_digits, inter_thresh_digits= inter_thresh_digits,
+                       results_eval_digits=results_evaluation_digits, CER=CER, counts_digits=counts_digits)
     else:
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
