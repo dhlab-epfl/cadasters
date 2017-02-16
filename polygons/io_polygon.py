@@ -7,7 +7,7 @@ import re
 
 
 def savePolygons(listPolygon, namesavefile, filename_cadaster_img):
-    # Projection reference
+    # Projection reference (Coordinate system)
     try:
         ds = gdal.Open(filename_cadaster_img)
         toks = re.search('AUTHORITY\[\".*,.*\"\],', ds.GetProjectionRef()) \

@@ -151,9 +151,6 @@ def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers
 
     # Print results by number of correctly retrieved digit
     print(print_digit_counts(counts_digits))
-    # for i in sorted(counts_digits.keys(), reverse=True):
-    #     print('\t{} digit(s) : {}/{} ({:.02f})'.format(i, counts_digits[i], n_partial_numbers,
-    #                                                    counts_digits[i] / n_partial_numbers))
 
     return CER, counts_digits
 

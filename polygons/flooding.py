@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-from geojson import Feature, Polygon
 import uuid
 
 
@@ -33,6 +32,7 @@ def clean_image_ridge(img_ridge, ksize):
     img_ridge[-1, :] = 255
 
     return img_ridge
+# --------------------------------------------------------------------------
 
 
 # def compute_images_for_flooding(img_ridge, ksize):
@@ -83,8 +83,7 @@ def Polygon2geoJSON(polyCV2, img_frangi, offset):
     :param img_frangi: ridge image
     :param offset: offset corresponding to the difference between original ridge image and cropped one.
                 This is used to realign coordinates of cropped ridge image with original coordinates
-    :return: parcels: list of tuples (uuid, polygon (opencv format)), list of FeaturePolygon (geoJSON format) updated
-            in listFEatPolygon variable
+    :return: parcels: list of tuples (uuid, polygon (opencv format))
     """
 
     # Mask for floodfill algorithm
@@ -149,15 +148,6 @@ def Polygon2geoJSON(polyCV2, img_frangi, offset):
             # Generate uuid
             uid = str(uuid.uuid4())
             parcels.append((uid, aprox_parcel))
-
-            # # Transform polygon aproxParcel to geoJSON Polygon format
-            # poly_points = list()
-            # for c in aprox_parcel:
-            #     poly_points.append([(float(pt[0, 0]), float(pt[0, 1])) for pt in c])
-            #
-            # myFeaturePoly = Feature(geometry=Polygon([poly_points]),
-            #                         properties={"uuid": uid})
-            # listFeatPolygon.append(myFeaturePoly)
 
             # Find zones that have not been flooded (in case a node include two distinct zones to flood)
             non_flooded_zones = (1*(seedmask > 0) - 1*(flooded_zone > 0)) > 0

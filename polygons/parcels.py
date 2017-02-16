@@ -30,9 +30,6 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
     #     Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
     ds = gdal.Open(img_filename)
     geo_transform = ds.GetGeoTransform()
-    # # Coordinate system
-    # ds.GetProjectionRef()
-
 
     # List to be updated during loop
     listFeatPolygon = list()
@@ -61,7 +58,6 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
         dic_polygon[bgn] = parcels
 
         # Transform polygon parcel to geoJSON Polygon format
-        poly_points = list()
         for (uuid, poly) in parcels:
             poly_points = list()
             for pt in poly[0]:

@@ -1,7 +1,5 @@
 import datetime
 import numpy as np
-# from text import print_digit_counts
-# import text
 
 
 def write_log_file(filename, **kwargs):
@@ -61,8 +59,6 @@ def write_log_file(filename, **kwargs):
             .format(res_parcels['false_positive'],
                     res_parcels['total_extracted'],
                     res_parcels['recall']))
-        # log_file.write('Precision : {:.02f}\n'.format(results_eval_parcels['precision']))
-        # log_file.write('Recall : {:.02f}\n'.format(results_eval_parcels['recall']))
 
     if res_digits:
 
@@ -87,13 +83,12 @@ def write_log_file(filename, **kwargs):
         log_file.write('Correct recognized numbers : {}/{} ({:.02f}) \n'.format(res_digits['true_positive_numbers'],
                                                                       res_digits['true_positive_box_inter'],
                                 res_digits['true_positive_numbers'] / res_digits['true_positive_box_inter']))
-        # log_file.write('Missed (Non-extracted) numbers : {}/{} ({:.02f})\n'.format(missed_numbers, total_true_numbers,
-        #                                                                         missed_numbers / total_true_numbers))
+
     if (CER is not None) and (counts_digits is not None):
         log_file.write('Character Error Rate (CER) : {:.02f}\n'.format(CER))
 
         n_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
-        log_file.write('Partial retrieval {}/{} (:.02f)\n'.format(n_partial_numbers,
+        log_file.write('Partial retrieval {}/{} ({:.02f})\n'.format(n_partial_numbers,
                                                                   res_digits['total_groundtruth'],
                                                         n_partial_numbers / res_digits['total_groundtruth']))
         log_file.write(print_digit_counts(counts_digits))

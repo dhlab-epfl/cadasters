@@ -510,7 +510,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             # More than 2 pixels per colums non zero, digits is composed of at least 4 columns
             # number_of_digits = find_pattern(projx > 2, [True] * 4)
             number_of_digits = 4
-            prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits)
+            prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits, tf_model=tf_model)
             try:
                 box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
             except TypeError:  # Delete box
@@ -560,7 +560,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                        classifier_filename=filename_classifier, size_image=img_filt.shape,
                        params_slic=params_slic, list_dict_features=list_dict_features,
-                       similarity_method=similarity_method, stop_criterion=stop_criterion,
+                       similarity_method=similarity_method, stop_criterion=stop_criterion, digit_tf_model=tf_model,
                        iou_thresh_parcels=iou_thresh_parcels, results_eval_parcels=results_evaluation_parcels,
                        iou_thresh_digits=iou_thresh_digits, inter_thresh_digits= inter_thresh_digits,
                        results_eval_digits=results_evaluation_digits, CER=CER, counts_digits=counts_digits)

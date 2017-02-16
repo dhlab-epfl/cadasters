@@ -5,7 +5,7 @@ from ocr.helpers import get_absolute_path
 import os
 
 MODELS_DIR = get_absolute_path('../data/models/')
-RESTORE_FILE = get_absolute_path('../data/models/mnist-net2/mnist-net2')
+RESTORE_FILE = get_absolute_path('../data/models/net2/mnist-net2/mnist-net2')
 BATCH_SIZE = 50
 MAX_STEPS = 10000
 
