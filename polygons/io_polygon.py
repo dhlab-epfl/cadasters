@@ -8,8 +8,9 @@ import re
 
 def savePolygons(listPolygon, namesavefile, filename_cadaster_img):
     # Projection reference (Coordinate system)
+
+    ds = gdal.Open(filename_cadaster_img)
     try:
-        ds = gdal.Open(filename_cadaster_img)
         toks = re.search('AUTHORITY\[\".*,.*\"\],', ds.GetProjectionRef()) \
                    .group()[len('AUTHORITY[\"'):-len('\"],')] \
                    .split('\"')
@@ -19,7 +20,14 @@ def savePolygons(listPolygon, namesavefile, filename_cadaster_img):
                               }
                }
     except AttributeError:
-        crs = None
+        if 'Monte Mario / Italy zone 2' in ds.GetProjection():
+            crs = {"type": "name",
+                   "properties": {
+                        "name": "urn:ogc:def:crs:EPSG::3004"
+                                 }
+                  }
+        else:
+            crs = None
 
     # Object to save
     collectionPolygons = FeatureCollection([poly for poly in listPolygon], crs=crs)

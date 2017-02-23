@@ -23,11 +23,15 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
 
     # Georeferencing for geojson (will have no effect if no geographic metadata is found)
     #     From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
-    #     In a north up image, geo_transform[1] is the pixel width,
-    #     and geo_transform[5] is the pixel height.
-    #     The upper left corner of the upper left pixel is at position (geo_transform[0], geo_transform[3]).
+    #     GeoTransform[0] / * top left x
+    #     GeoTransform[1] / * w - e pixel resolution (width)
+    #     GeoTransform[2] / * rotation, 0 if image is "north up"
+    #     GeoTransform[3] / * top left y */
+    #     GeoTransform[4] / * rotation, 0 if image is "north up"
+    #     GeoTransform[5] / * n - s pixel resolution (height)
     #     Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
     #     Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
+
     ds = gdal.Open(img_filename)
     geo_transform = ds.GetGeoTransform()
 

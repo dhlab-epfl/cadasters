@@ -51,14 +51,14 @@ def write_log_file(filename, **kwargs):
         log_file.write('IoU threshold : {}\n'.format(iou_thresh_parcels))
         log_file.write('Total parcels (groundtruth) : {}\n'.format(res_parcels['total_groundtruth']))
         log_file.write('Total extracted parcels : {}\n'.format(res_parcels['total_extracted']))
-        log_file.write('True positives parcels : {}/{}  /  Precision : {:.02f}\n'
+        log_file.write('True positives parcels : {}/{}  /  Recall : {:.02f}\n'
             .format(res_parcels['true_positive'],
                     res_parcels['total_groundtruth'],
-                    res_parcels['precision']))
-        log_file.write('False positives parcels : {}/{}  /  Recall : {:.02f}\n'
+                    res_parcels['recall']))
+        log_file.write('False positives parcels : {}/{}  /  Precision : {:.02f}\n'
             .format(res_parcels['false_positive'],
                     res_parcels['total_extracted'],
-                    res_parcels['recall']))
+                    res_parcels['precision']))
 
     if res_digits:
 
