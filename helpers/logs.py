@@ -56,7 +56,7 @@ def write_log_file(filename, **kwargs):
                     res_parcels['total_groundtruth'],
                     res_parcels['recall']))
         log_file.write('False positives parcels : {}/{}  /  Precision : {:.02f}\n'
-            .format(res_parcels['true_positive'],
+            .format(res_parcels['false_positive'],
                     res_parcels['total_extracted'],
                     res_parcels['precision']))
 
