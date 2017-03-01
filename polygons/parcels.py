@@ -63,21 +63,25 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
 
         # Transform polygon parcel to geoJSON Polygon format
         for (uuid, poly) in parcels:
-            poly_hierarchy = list()
-            for subp in poly:
-                polygon_points = list()
-                for pt in subp:
+            final_polygon = list()
+
+            for cnt in poly:
+                poly_contours = list()
+
+                for pt in cnt:
                     ptx = float(pt[0, 0])
                     pty = float(pt[0, 1])
                     geo_ptx = geo_transform[0] + ptx * geo_transform[1] + pty * geo_transform[2]
                     geo_pty = geo_transform[3] + ptx * geo_transform[4] + pty * geo_transform[5]
-                    polygon_points.append((geo_ptx, geo_pty))
-                polygon_points.append(polygon_points[0])  # close polygon
-                poly_hierarchy.append(polygon_points)
-        if poly_hierarchy:
-            myFeaturePoly = Feature(geometry=Polygon(poly_hierarchy),
-                                    properties={"uuid": uuid})
-            listFeatPolygon.append(myFeaturePoly)
+                    poly_contours.append((geo_ptx, geo_pty))
+
+                poly_contours.append(poly_contours[0])  # close polygon
+                final_polygon.append(poly_contours)
+
+            if final_polygon:
+                myFeaturePoly = Feature(geometry=Polygon(final_polygon),
+                                        properties={"uuid": uuid})
+                listFeatPolygon.append(myFeaturePoly)
 
     return listFeatPolygon, dic_polygon
 
