@@ -70,6 +70,7 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
                 geo_ptx = geo_transform[0] + ptx * geo_transform[1] + pty * geo_transform[2]
                 geo_pty = geo_transform[3] + ptx * geo_transform[4] + pty * geo_transform[5]
                 poly_points.append((geo_ptx, geo_pty))
+            poly_points.append(poly_points[0])  # close polygon
             if poly_points:
                 myFeaturePoly = Feature(geometry=Polygon([poly_points]),
                                         properties={"uuid": uuid})
