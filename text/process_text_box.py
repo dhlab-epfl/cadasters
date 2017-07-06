@@ -149,11 +149,11 @@ def custom_bounding_rect(box_points):
     ymin = np.min(box_points[:, 1])
     ymax = np.max(box_points[:, 1])
 
-    return np.array([[xmin, ymin], [xmin, ymax], [xmax, ymax], [xmax, ymin]])
+    return np.array([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]])
 
 
 def add_margin_to_rectangle(rect_coords, margin):
-    margin_array = np.array([[-margin, -margin], [-margin, margin], [margin, margin], [margin, -margin]])
+    margin_array = np.array([[-margin, -margin], [margin, -margin], [margin, margin], [-margin, margin]])
     new_coords = rect_coords + margin_array
 
     return new_coords

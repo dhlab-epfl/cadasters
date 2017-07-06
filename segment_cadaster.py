@@ -480,23 +480,23 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             _, _, angle = find_text_orientation_from_box(box, img_filt)
 
             # Get original image with margin and rotate it
-            bounding_rect_coords = custom_bounding_rect(box.box_pts)
+            bounding_rect_coords = custom_bounding_rect(box.original_box_pts)
             bounding_rect_coords = add_margin_to_rectangle(bounding_rect_coords, margin=3)
             bounding_rect_coords = check_validity_points(bounding_rect_coords, img_filt.shape)
             xmin, xmax, ymin, ymax = get_crop_indexes_from_points(bounding_rect_coords)
             crop_img = img_filt[ymin:ymax+1, xmin:xmax+1].copy()
-            rotated_crop, rot_mat = rotate_image_with_mat(crop_img, angle)
+            rotated_crop, rot_mat = rotate_image_with_mat(crop_img.copy(), angle)
+
             # Get the box points with the new rotated coordinates
-            box_pts_offset_crop = box.box_pts.copy()
-            box_pts_offset_crop[:, 0] = box.box_pts[:, 0] - xmin
-            box_pts_offset_crop[:, 1] = box.box_pts[:, 1] - ymin
+            box_pts_offset_crop = box.original_box_pts.copy()
+            box_pts_offset_crop[:, 0] = box.original_box_pts[:, 0] - xmin
+            box_pts_offset_crop[:, 1] = box.original_box_pts[:, 1] - ymin
             box_pts_offset_crop = check_validity_points(box_pts_offset_crop, rotated_crop.shape)
             rotated_coords = cv2.transform(np.array([box_pts_offset_crop]), rot_mat)
             # Crop rotated element
             xmin_rot, xmax_rot, ymin_rot, ymax_rot = get_crop_indexes_from_points(rotated_coords[0])
             crop_number = rotated_crop[ymin_rot:ymax_rot+1, xmin_rot:xmax_rot+1]
 
-            print('------- Size cropped number : {}'.format(crop_number.shape))
             if crop_number.size == 0:
                 continue
             ratio_size = crop_number.shape[1]/crop_number.shape[0]
