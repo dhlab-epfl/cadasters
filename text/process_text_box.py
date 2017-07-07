@@ -166,12 +166,3 @@ def check_validity_points(points, max_shape):
     points[:, 1] = np.minimum(points[:, 1], max_shape[0] * np.ones(points[:, 1].shape))
 
     return points
-
-
-def get_crop_indexes_from_points(points):
-    ymin = np.min(points[:, 1])
-    ymax = np.max(points[:, 1])
-    xmin = np.min(points[:, 0])
-    xmax = np.max(points[:, 0])
-
-    return xmin, xmax, ymin, ymax
