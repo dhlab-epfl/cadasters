@@ -7,7 +7,6 @@ from graph import contract_nodes
 from helpers import merge_segments
 
 
-
 def find_text_boxes(graph, original_segments):
     """
     Uses the graph representing text elements to bound text by boxes and return a list of

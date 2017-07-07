@@ -23,7 +23,7 @@ from classification import node_classifier
 from polygons import find_parcels, savePolygons, crop_polygon, clean_image_ridge, global_evaluation_parcels
 from text import find_text_boxes, find_false_box, group_box_with_lbl, group_box_with_isolates, \
     crop_box, find_orientation, crop_object, global_digit_evaluation, find_text_orientation_from_box, crop_with_margin, \
-    custom_bounding_rect, add_margin_to_rectangle, get_crop_indexes_from_points, check_validity_points
+    custom_bounding_rect, add_margin_to_rectangle, check_validity_points
 from ocr import recognize_number
 
 
@@ -483,19 +483,24 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             bounding_rect_coords = custom_bounding_rect(box.original_box_pts)
             bounding_rect_coords = add_margin_to_rectangle(bounding_rect_coords, margin=3)
             bounding_rect_coords = check_validity_points(bounding_rect_coords, img_filt.shape)
-            xmin, xmax, ymin, ymax = get_crop_indexes_from_points(bounding_rect_coords)
-            crop_img = img_filt[ymin:ymax+1, xmin:xmax+1].copy()
+            x, y, w, h = cv2.boundingRect(bounding_rect_coords)
+            crop_img = img_filt[y:y+h, x:x+w].copy()
             rotated_crop, rot_mat = rotate_image_with_mat(crop_img.copy(), angle)
+
+            cv2.imwrite(os.path.join(path_digits, '{}_crop.jpg'.format(box.box_id)),
+                        crop_img)
+            cv2.imwrite(os.path.join(path_digits, '{}_rot.jpg'.format(box.box_id)),
+                        rotated_crop)
 
             # Get the box points with the new rotated coordinates
             box_pts_offset_crop = box.original_box_pts.copy()
-            box_pts_offset_crop[:, 0] = box.original_box_pts[:, 0] - xmin
-            box_pts_offset_crop[:, 1] = box.original_box_pts[:, 1] - ymin
-            box_pts_offset_crop = check_validity_points(box_pts_offset_crop, rotated_crop.shape)
+            box_pts_offset_crop[:, 0] = box.original_box_pts[:, 0] - x
+            box_pts_offset_crop[:, 1] = box.original_box_pts[:, 1] - y
             rotated_coords = cv2.transform(np.array([box_pts_offset_crop]), rot_mat)
+            rotated_coords = check_validity_points(rotated_coords, rotated_crop.shape)
             # Crop rotated element
-            xmin_rot, xmax_rot, ymin_rot, ymax_rot = get_crop_indexes_from_points(rotated_coords[0])
-            crop_number = rotated_crop[ymin_rot:ymax_rot+1, xmin_rot:xmax_rot+1]
+            x_rot, y_rot, w_rot, h_rot = cv2.boundingRect(rotated_coords[0])
+            crop_number = rotated_crop[y_rot:y_rot+h_rot, x_rot:x_rot+w_rot]
 
             if crop_number.size == 0:
                 continue
@@ -536,78 +541,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Don't forget to close session
         sess.close()
-
-        # for box in final_boxes:
-        #     # Expand box
-        #     box.expand_box(padding=2)
-        #
-        #     # Crop
-        #     crop_imgL, (xmin, xmax, ymin, ymax) = crop_box(box, dict_features['Lab'][:, :, 0])
-        #     cropped_number = img[ymin:ymax + 1, xmin:xmax + 1].copy()
-        #
-        #     # Binarize to have the general shape so that we can dilate it as a
-        #     # blob and find the orientation of the blob
-        #
-        #     # Binarization
-        #     blur = cv2.GaussianBlur(crop_imgL, (3, 3), 0)
-        #     ret, binary_crop = cv2.threshold(blur, 0, np.max(crop_imgL), cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        #     inv_crop = np.uint8(255 * (binary_crop < 1))
-        #     # Morphology _ dilation
-        #     dilated = cv2.dilate(inv_crop, np.ones((5, 5), np.uint8))
-        #     # Find orientation with PCA
-        #     center, eigvect, angle = find_orientation(dilated)
-        #
-        #     # Plot orientation
-        #     # if show_plots:
-        #     #     img2draw = inv_crop.copy()
-        #     #     filename = os.path.join(path_digits, '{}_orientation.jpg'.format(box.box_id))
-        #     #     show_orientation(img2draw, eigvect, center, filename=filename)
-        #
-        #     # Rotate image to align it horizontally
-        #     img_pad = padding(inv_crop, 0)
-        #     rotated_img = rotate_image(img_pad, angle)
-        #
-        #     # Recrop image
-        #     final_digit_bin, (y, x, h, w) = crop_object(rotated_img)
-        #     # final_digit_bin = final_digit_bin > 1  # >>>>> NOT SURE USEFUL
-        #     # Morphology _ erosion
-        #     # final_digit_bin = cv2.erode(final_digit_bin, np.ones((5, 5), np.uint8))
-        #
-        #     # Format image to be saved into 3 channel uint8
-        #     # final_digit_bin = np.uint8(255 * final_digit_bin)
-        #     # formated_digit_img = np.dstack([final_digit_bin] * 3)
-        #
-        #     # Rotate original image
-        #     rotated_number = rotate_image(padding(cropped_number, 255), angle)
-        #     rotated_number = rotated_number[x:x + w, y:y + h, :]
-        #
-        #     # RECOGNIZING NUMBERS
-        #     # --------------------
-        #     # Number of digits per number  <<<<<< find a way to estimate before recognition
-        #     # final_skelton = skeletonize(final_digit_bin)
-        #     # projx = np.sum(final_skelton > 0, axis=0)
-        #     # More than 2 pixels per colums non zero, digits is composed of at least 4 columns
-        #     # number_of_digits = find_pattern(projx > 2, [True] * 4)
-        #     number_of_digits = 4
-        #     prediction, proba = recognize_number(rotated_number, number_of_digits=number_of_digits, tf_model=tf_model)
-        #     try:
-        #         box.prediction_number = tuple([int(prediction), float('{:.02f}'.format(proba))])
-        #     except TypeError:  # Delete box
-        #         ind = final_boxes.index(box)
-        #         final_boxes[ind] = []
-        #         continue
-        #
-        #     # Save in JSON file
-        #     data = OrderedDict([('number', prediction), ('confidence', proba)])
-        #     filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
-        #     with open(filename_json, 'w') as fjson:
-        #         json.dump(data, fjson)
-        #
-        #     # Save cropped image
-        #     if show_plots:
-        #         # cv2.imwrite(os.path.join(path_digits, '{}.jpg'.format(box.box_id)), formated_digit_img)
-        #         cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
-        #                     rotated_number)
 
         # Remove empty items from list
         final_boxes = [b for b in final_boxes if b]
