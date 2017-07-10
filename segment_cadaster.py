@@ -503,9 +503,15 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             crop_number = rotated_crop[y_rot:y_rot+h_rot, x_rot:x_rot+w_rot]
 
             if crop_number.size == 0:
+                ind = final_boxes.index(box)
+                final_boxes[ind] = []
+                # final_boxes.remove(box)
                 continue
             ratio_size = crop_number.shape[1]/crop_number.shape[0]
             if ratio_size < 0.8:
+                ind = final_boxes.index(box)
+                final_boxes[ind] = []
+                # final_boxes.remove(box)
                 continue
 
             # RECOGNIZING NUMBERS
@@ -526,6 +532,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             except TypeError:  # Delete box
                 ind = final_boxes.index(box)
                 final_boxes[ind] = []
+                # final_boxes.remove(box)
                 continue
 
             # Save in JSON file

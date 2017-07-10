@@ -107,6 +107,9 @@ def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
                 continue
 
         # Evaluate if the extracted digit is correctly recognized
+        if not predicted_number:
+            list_partial_numbers_results.append([0, 0, len(str(correct_label))])
+            continue
         if correct_label == int(predicted_number):
             n_true_positives += 1
         else:
