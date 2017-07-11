@@ -223,9 +223,9 @@ def print_evaluation_digits(results_evaluation_digits):
 
     print('\t__Evaluation of ID recognition__')
     print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_numbers'],
-                                                                  results_evaluation_digits['total_groundtruth'],
+                                                                  results_evaluation_digits['true_positive_box_inter'],
                                                                   results_evaluation_digits['true_positive_numbers'] /
-                                                                  results_evaluation_digits['total_groundtruth']))
+                                                                  results_evaluation_digits['true_positive_box_inter']))
     print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
                                                       results_evaluation_digits['total_predicted'],
                                                       results_evaluation_digits['false_positive_numbers'] /
