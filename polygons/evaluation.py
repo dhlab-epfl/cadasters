@@ -61,8 +61,8 @@ def print_evaluation_parcels(results_evaluation_parcels):
 
 def global_evaluation_parcels(dic_polygon, groundtruth_parcels_filename, iou_thresh_parcels=0.6):
     # Open image and give a unique label to each parcel
-    image_parcels_gt = cv2.imread(groundtruth_parcels_filename)
-    image_parcels_gt = np.uint8(image_parcels_gt[:, :, 0] > 128) * 255
+    image_parcels_gt = cv2.imread(groundtruth_parcels_filename, cv2.IMREAD_GRAYSCALE)
+    image_parcels_gt = np.uint8(image_parcels_gt > 128) * 255
     n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
 
     # Evaluate

@@ -33,7 +33,7 @@ def print_digit_counts(counts_digits):
     str_to_print = ''
     for i in sorted(counts_digits.keys(), reverse=True):
         str_to_print += '\t{} digit(s) : {}/{} ({:.02f})\n'.format(i, counts_digits[i], total_counts,
-                                                                       counts_digits[i] / total_counts)
+                                                                   counts_digits[i] / total_counts)
     return str_to_print
 
 # ------------------------------------------------------------------
@@ -140,7 +140,7 @@ def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
 def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers_results, n_labels):
 
     n_partial_numbers = partial_numbers_results.shape[0]
-    n_predicted_numbers = n_partial_numbers + n_true_positives + n_false_positives
+    # n_predicted_numbers = n_partial_numbers + n_true_positives + n_false_positives
 
     sums_results = np.sum(partial_numbers_results, axis=0)
 
@@ -150,7 +150,7 @@ def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers
 
     print('CER : {:.02f}'.format(CER))
 
-    print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
+    print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_true_positives, n_partial_numbers / n_true_positives))
 
     # Print results by number of correctly retrieved digit
     print(print_digit_counts(counts_digits))
@@ -205,17 +205,17 @@ def print_evaluation_digits(results_evaluation_digits):
     print('\t__Evaluation of ID localization')
     print('\tCorrect localized numbers (IoU) : {}/{} ({:.02f})'
           .format(results_evaluation_digits['true_positive_box_iou'],
-                 results_evaluation_digits['total_groundtruth'],
-                 results_evaluation_digits['true_positive_box_iou'] / results_evaluation_digits['total_groundtruth']))
+                  results_evaluation_digits['total_groundtruth'],
+                  results_evaluation_digits['true_positive_box_iou'] / results_evaluation_digits['total_groundtruth']))
     print('\tFalse positive (IoU) : {}/{} ({:.02f})'.
           format(results_evaluation_digits['false_positive_box_iou'],
-                  results_evaluation_digits['total_predicted'],
-                  results_evaluation_digits['false_positive_box_iou'] / results_evaluation_digits['total_predicted']))
+                 results_evaluation_digits['total_predicted'],
+                 results_evaluation_digits['false_positive_box_iou'] / results_evaluation_digits['total_predicted']))
 
     print('\tCorrect localized numbers (intersection) : {}/{} ({:.02f})'
           .format(results_evaluation_digits['true_positive_box_inter'],
-                 results_evaluation_digits['total_groundtruth'],
-                 results_evaluation_digits['true_positive_box_inter'] / results_evaluation_digits['total_groundtruth']))
+                  results_evaluation_digits['total_groundtruth'],
+                  results_evaluation_digits['true_positive_box_inter'] / results_evaluation_digits['total_groundtruth']))
     print('\tFalse positive (intersection) : {}/{} ({:.02f})'
           .format(results_evaluation_digits['false_positive_box_inter'],
                   results_evaluation_digits['total_predicted'],
@@ -226,10 +226,10 @@ def print_evaluation_digits(results_evaluation_digits):
                                                                   results_evaluation_digits['total_groundtruth'],
                                                                   results_evaluation_digits['true_positive_numbers'] /
                                                                   results_evaluation_digits['total_groundtruth']))
-    print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
-                                                      results_evaluation_digits['total_predicted'],
-                                                      results_evaluation_digits['false_positive_numbers'] /
-                                                      results_evaluation_digits['total_predicted']))
+    print('\tFalse positive numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
+                                                              results_evaluation_digits['total_predicted'],
+                                                              results_evaluation_digits['false_positive_numbers'] /
+                                                              results_evaluation_digits['total_predicted']))
 
 
 def global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,

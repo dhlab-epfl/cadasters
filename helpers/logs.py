@@ -89,8 +89,8 @@ def write_log_file(filename, **kwargs):
 
         n_partial_numbers = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
         log_file.write('Partial retrieval {}/{} ({:.02f})\n'.format(n_partial_numbers,
-                                                                  res_digits['total_groundtruth'],
-                                                        n_partial_numbers / res_digits['total_groundtruth']))
+                                                                    res_digits['true_positive_box_inter'],
+                                                        n_partial_numbers / res_digits['true_positive_box_inter']))
         log_file.write(print_digit_counts(counts_digits))
 
     # Close file
