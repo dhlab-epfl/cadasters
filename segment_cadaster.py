@@ -557,12 +557,19 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     #
     # Evaluation of predicted digits
     if evaluation:
+        # -- IOU evaluation
         iou_thresh_digits = 0.5
-        inter_thresh_digits = 0.7
-        results_evaluation_digits, \
-            CER, counts_digits = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                                                             iou_thresh=iou_thresh_digits,
-                                                             inter_thresh=inter_thresh_digits)
+        results_localization_iou, results_recognition_iou = \
+            txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
+                                        thresh=iou_thresh_digits, use_iou=True, printing=True)
+        # -- inter evaluation
+        inter_thresh_digits = 0.8
+        results_localization_inter, results_recognition_inter\
+            = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
+                                          thresh=inter_thresh_digits, use_iou=False, printing=True)
+
+        results_digits_eval = {'iou': (results_localization_iou, results_recognition_iou),
+                               'inter': (results_localization_inter, results_recognition_inter)}
     #
     # LOG FILE
     #
@@ -577,10 +584,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
                                classifier_filename=filename_classifier, size_image=img_filt.shape,
                                params_slic=params_slic, list_dict_features=list_dict_features,
                                similarity_method=similarity_method, stop_criterion=stop_criterion,
-                               digit_tf_model=tf_model_dir, iou_thresh_parcels=iou_thresh_parcels,
-                               results_eval_parcels=results_evaluation_parcels, iou_thresh_digits=iou_thresh_digits,
-                               inter_thresh_digits=inter_thresh_digits, results_eval_digits=results_evaluation_digits,
-                               CER=CER, counts_digits=counts_digits)
+                               digit_tf_model=tf_model_dir, results_parcels_eval=results_evaluation_parcels,
+                               results_digits_eval=results_digits_eval)
     else:
         helpers.write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
                                classifier_filename=filename_classifier, size_image=img_filt.shape,
