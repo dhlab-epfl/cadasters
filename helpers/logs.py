@@ -3,7 +3,7 @@ import numpy as np
 # from text.evaluation import print_digit_counts
 
 
-def write_log_file(filename, **kwargs):
+def write_log_file(filename, **kwargs) -> None:
 
     cadaster_filename = kwargs.get('cadaster_filename')
     size_image = kwargs.get('size_image')
@@ -80,7 +80,7 @@ def write_log_file(filename, **kwargs):
             log_file.write('Character Error Rate (CER) : {:.02f}\n'.format(result_recognition.cer))
 
             log_file.write('Partial retrieval)\n')
-            log_file.write(print_digit_counts(result_recognition.partial_recognition))
+            log_file.write(print_digit_counts(result_recognition.partial_measure))
 
     # if res_digits:
     #     log_file.write('---- Evaluation digits ----\n')
@@ -116,6 +116,7 @@ def write_log_file(filename, **kwargs):
 
     # Close file
     log_file.close()
+
 
 def print_digit_counts(counts_digits):
 

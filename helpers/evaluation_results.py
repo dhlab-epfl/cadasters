@@ -15,7 +15,6 @@ class ResultsLocalization:
         self.threshold = kwargs.get('thresh')
         self.recall = kwargs.get('recall')
         self.precision = kwargs.get('precision')
-        self.cer = kwargs.get('cer')
 
     def compute_metrics(self):
         assert (self.true_positive and self.false_positive and self.total_groundtruth), \
@@ -34,9 +33,10 @@ class ResultsRecognition:
         self.total_predicted = kwargs.get('total_predicted')
         self.partial_recognition = kwargs.get('partial_recognition')
         self.recall = kwargs.get('recall')
+        self.cer = kwargs.get('cer')
 
     def compute_metrics(self):
-        assert (self.true_positive and self.total_groundtruth and self.partial_recognition), \
+        assert (self.true_positive and self.total_groundtruth and self.partial_recognition.any), \
             "True and False positives not initialized or partial_recognition is not initialized"
 
         self.recall = self.true_positive/self.total_groundtruth

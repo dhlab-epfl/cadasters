@@ -4,7 +4,7 @@ import cv2
 from helpers import ResultsLocalization
 
 
-def evalutation_parcel_iou(parcels_groundtruth, dic_polygons, iou_thresh=0.8):
+def evalutation_parcel_iou(parcels_groundtruth: np.array, dic_polygons: dict, iou_thresh=0.8) -> (int, int):
     """
     Evaluates the extraction of parcels using Intersection over Union metric (IoU)
     :param parcels_groundtruth: image with labelled parcels
@@ -44,7 +44,7 @@ def evalutation_parcel_iou(parcels_groundtruth, dic_polygons, iou_thresh=0.8):
 # --------------------------------------------------------------------------
 
 
-def print_evaluation_parcels(results: ResultsLocalization):
+def print_evaluation_parcels(results: ResultsLocalization) -> None:
     print('\t --Evaluation polygon extraction --')
 
     print('\t\tNumber correct polygons : {}/{}, recall : {:.02f}'.
@@ -52,9 +52,9 @@ def print_evaluation_parcels(results: ResultsLocalization):
                results.total_groundtruth,
                results.recall))
 
-    print('\t\tNumber incorrect polygons : {}/{}'.
+    print('\t\tNumber incorrect polygons : {}/{} ({:,02f})'.
           format(results.false_positive,
-                 results.total_predicted))
+                 results.total_predicted, results.false_positive/results.total_predicted))
 
     print('\t\tPrecision : {:.02f}'.format(results.precision))
 # --------------------------------------------------------------------------
@@ -82,7 +82,8 @@ def print_evaluation_parcels(results: ResultsLocalization):
 #
 #     return results_evaluation_parcels
 
-def global_evaluation_parcels(dic_polygon, groundtruth_parcels_filename, iou_thresh_parcels=0.6, printing=True):
+def global_evaluation_parcels(dic_polygon: dict, groundtruth_parcels_filename: str,
+                              iou_thresh_parcels=0.6, printing=True) -> ResultsLocalization:
     # Open image and give a unique label to each parcel
     image_parcels_gt = cv2.imread(groundtruth_parcels_filename, cv2.IMREAD_GRAYSCALE)
     image_parcels_gt = np.uint8(image_parcels_gt > 128) * 255

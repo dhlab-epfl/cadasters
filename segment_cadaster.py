@@ -1,25 +1,19 @@
 #!/usr/bin/env python
 
-import cv2
-import sys
-import os
+import cv2, sys, os, pickle, copy, json, time, argparse
 import numpy as np
-import pickle
-import copy
 import networkx as nx
-import json
-import time
 import tensorflow as tf
-import argparse
 from collections import OrderedDict
 from preprocessing import image_filtering, features_extraction
 from segmentation import compute_slic
-import helpers
-from graph import edge_cut_minimize_std, assign_feature_to_node, generate_vertices_and_edges
+import helpers, polygons, graph
 from classification import node_classifier
-import polygons
 import text as txt
-import better_exceptions
+try:
+    import better_exceptions
+except ImportError:
+    pass
 
 
 def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, tf_model_dir=None,
@@ -155,7 +149,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         G = nx.Graph()
         nsegments = original_segments.copy()
 
-        G = edge_cut_minimize_std(G, nsegments, dict_features, similarity_method, mst=True, stop_std_val=stop_criterion)
+        G = graph.edge_cut_minimize_std(G, nsegments, dict_features, similarity_method,
+                                        mst=True, stop_std_val=stop_criterion)
 
         if debug:
             with open(savefile_graph, 'wb') as handle:
@@ -334,7 +329,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             G.node[v]['id_sp'].remove(k)
             pix = original_segments == k
             nsegments[pix] = k
-            assign_feature_to_node(G, k, nsegments, dict_features)
+            graph.assign_feature_to_node(G, k, nsegments, dict_features)
 
         # Update correspondancies label nodes
         dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
@@ -358,7 +353,7 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         O = nx.Graph()
 
         # Construct vertices and neighboring edges
-        vertices, edges = generate_vertices_and_edges(original_segments)
+        vertices, edges = graph.generate_vertices_and_edges(original_segments)
         # Add nodes
         O.add_nodes_from(vertices)
         nx.set_node_attributes(O, 'class', attribute_node_class)
@@ -559,11 +554,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     if evaluation:
         # -- IOU evaluation
         iou_thresh_digits = 0.5
+        print('-- Evaluation IoU ({})--'.format(iou_thresh_digits))
         results_localization_iou, results_recognition_iou = \
             txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
                                         thresh=iou_thresh_digits, use_iou=True, printing=True)
         # -- inter evaluation
         inter_thresh_digits = 0.8
+        print('-- Evaluation INTER -- ({})'.format(inter_thresh_digits))
         results_localization_inter, results_recognition_inter\
             = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
                                           thresh=inter_thresh_digits, use_iou=False, printing=True)

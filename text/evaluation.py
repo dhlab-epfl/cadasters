@@ -26,7 +26,7 @@ def make_mask_pointPolyTest(mask_shape, contours, distance=False):
 # ------------------------------------------------------------------
 
 
-def print_digit_counts(counts_digits):
+def print_digit_counts(counts_digits) -> None:
 
     total_counts = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
 
@@ -39,7 +39,7 @@ def print_digit_counts(counts_digits):
 # ------------------------------------------------------------------
 
 
-def get_labelled_digits_matrix(filename_digits_labelled):
+def get_labelled_digits_matrix(filename_digits_labelled: str) -> np.array:
     """
     From the RGB image (h x w x 3), reconstruct the matrix of labels of the digits for evaluation
     :param filename_digits_labelled: filename of labelled digit image
@@ -81,7 +81,7 @@ def get_labelled_digits_matrix(filename_digits_labelled):
 # ---------------------------------------------------------------------
 
 
-def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
+def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: list) -> (int, int, np.array):
 
     # Number of false and true positives
     n_false_positives = 0
@@ -157,7 +157,7 @@ def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
 #     return counts_digits
 
 
-def evaluation_digit_localisation(digits_groundtruth, list_boxes, thresh=0.5, iou=True):
+def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, thresh=0.5, iou=True) -> (int, int, list):
     nb_correct_box = 0
     nb_incorrect_box = 0
 
@@ -202,7 +202,7 @@ def evaluation_digit_localisation(digits_groundtruth, list_boxes, thresh=0.5, io
     return nb_correct_box, nb_incorrect_box, list_correct_boxes
 
 
-def print_evaluation_digits(results_localization: ResultsLocalization, results_recognition: ResultsRecognition):
+def print_evaluation_digits(results_localization: ResultsLocalization, results_recognition: ResultsRecognition) -> None:
     print('\t__Evaluation of ID localization and recognition__')
     print('\t__Evaluation of ID localization')
     print('\tCorrect localized numbers : {}/{} (recall : {:.02f})'.format(results_localization.true_positive,
@@ -302,8 +302,8 @@ def print_evaluation_digits(results_localization: ResultsLocalization, results_r
 #
 #     return results
 
-def global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                            thresh=0.5, use_iou=False, printing=True):
+def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str,
+                            thresh=0.5, use_iou=False, printing=True) -> (ResultsLocalization, ResultsRecognition):
     """
 
     :param final_boxes:
