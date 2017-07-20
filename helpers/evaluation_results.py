@@ -8,13 +8,13 @@ from collections import Counter
 class ResultsLocalization:
 
     def __init__(self, **kwargs):
-        self.true_positive = kwargs.get('true_positives')
-        self.false_positive = kwargs.get('false_positives')
-        self.total_groundtruth = kwargs.get('total_truth')
-        self.total_predicted = kwargs.get('total_predicted')
-        self.threshold = kwargs.get('thresh')
-        self.recall = kwargs.get('recall')
-        self.precision = kwargs.get('precision')
+        self.true_positive = kwargs.get('true_positives', 0)
+        self.false_positive = kwargs.get('false_positives', 0)
+        self.total_groundtruth = kwargs.get('total_truth', 0)
+        self.total_predicted = kwargs.get('total_predicted', 0)
+        self.threshold = kwargs.get('thresh', 0)
+        self.recall = kwargs.get('recall', 0)
+        self.precision = kwargs.get('precision', 0)
 
     def compute_metrics(self):
         assert (self.true_positive and self.false_positive and self.total_groundtruth), \
@@ -27,16 +27,16 @@ class ResultsLocalization:
 class ResultsRecognition:
 
     def __init__(self, **kwargs):
-        self.true_positive = kwargs.get('true_positives')
-        self.false_positive = kwargs.get('false_positives')
-        self.total_groundtruth = kwargs.get('total_truth')
-        self.total_predicted = kwargs.get('total_predicted')
+        self.true_positive = kwargs.get('true_positives', 0)
+        self.false_positive = kwargs.get('false_positives', 0)
+        self.total_groundtruth = kwargs.get('total_truth', 0)
+        self.total_predicted = kwargs.get('total_predicted', 0)
         self.partial_recognition = kwargs.get('partial_recognition')
-        self.recall = kwargs.get('recall')
-        self.cer = kwargs.get('cer')
+        self.recall = kwargs.get('recall', 0)
+        self.cer = kwargs.get('cer', 0)
 
     def compute_metrics(self):
-        assert (self.true_positive and self.total_groundtruth and self.partial_recognition.any), \
+        assert (self.true_positive != 0 and self.total_groundtruth != 0 and self.partial_recognition.any), \
             "True and False positives not initialized or partial_recognition is not initialized"
 
         self.recall = self.true_positive/self.total_groundtruth
