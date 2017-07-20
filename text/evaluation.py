@@ -137,26 +137,6 @@ def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: l
 # ---------------------------------------------------------------------
 
 
-# def interpret_digit_results(n_true_positives, partial_numbers_results, printing=True):
-#
-#     n_partial_numbers = partial_numbers_results.shape[0]
-#     # n_predicted_numbers = n_partial_numbers + n_true_positives + n_false_positives
-#
-#     # sums_results = np.sum(partial_numbers_results, axis=0)
-#
-#     # Character Error Rate
-#     # CER = sums_results[0] / sums_results[2]
-#     counts_digits = Counter(partial_numbers_results[:, 1])
-#
-#     if printing:
-#         # print('CER : {:.02f}'.format(CER))
-#         print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_true_positives, n_partial_numbers / n_true_positives))
-#         # Print results by number of correctly retrieved digit
-#         print(print_digit_counts(counts_digits))
-#
-#     return counts_digits
-
-
 def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, thresh=0.5, iou=True) -> (int, int, list):
     nb_correct_box = 0
     nb_incorrect_box = 0
@@ -218,89 +198,6 @@ def print_evaluation_digits(results_localization: ResultsLocalization, results_r
                                                                            results_recognition.recall))
     print('\t Character Error Rate (CER) : {}'.format(results_recognition.cer))
 
-
-# def global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-#                             iou_thresh=0.5, inter_thresh=0.8, printing=True):
-#     """
-#
-#     :param final_boxes:
-#     :param groundtruth_labels_digits_filename:
-#     :param iou_thresh:
-#     :param inter_thresh:
-#     :param printing:
-#     :return: results_evaluation_digits : {
-#                                             true_positive_box_iou
-#                                             false_positive_box_iou
-#                                             true_positive_box_inter
-#                                             false_positive_box_inter
-#                                             true_positive_numbers : using 'true_positive_box_inter' boxes
-#                                             false_positive_numbers : using 'true_positive_box_inter' boxes
-#                                             partial_numbers_results : using 'true_positive_box_inter' boxes
-#                                             true_positive_numbers_iou : using 'true_positive_box_iou'
-#                                             false_positive_numbers_iou : using 'true_positive_box_iou'
-#                                             partial_numbers_results_iou : using 'true_positive_box_iou'
-#                                             total_groundtruth :
-#                                             total_predicted
-#                                             total_predicted_iou
-#                                             }
-#     """
-#
-#     labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
-#     total_gt = len(np.unique(labels_matrix)) - 1
-#     total_predicted = len(final_boxes)
-#
-#     # -- Case IOU --
-#     # Localization
-#     results_localization_iou = ResultsLocalization(total_truth=total_gt,
-#                                                    total_predicted=total_predicted,
-#                                                    thresh=iou_thresh)
-#     results_localization_iou.true_positive, results_localization_iou.false_positive, \
-#         list_correct_boxes_iou = evaluation_digit_localisation(labels_matrix, final_boxes, thresh=iou_thresh, iou=True)
-#     results_localization_iou.compute_metrics()
-#
-#     # Recognition for IoU
-#     results_recognition_iou = ResultsRecognition(total_truth=len(list_correct_boxes_iou),
-#                                                  total_predicted=len(list_correct_boxes_iou),
-#                                                  thresh=iou_thresh)
-#     results_recognition_iou.true_positive, results_recognition_iou.false_positive, \
-#         results_recognition_iou.partial_recognition = evaluation_digit_recognition(labels_matrix, list_correct_boxes_iou)
-#     results_recognition_iou.compute_metrics()
-#
-#     if printing:
-#         print_evaluation_digits(results_localization=results_localization_iou,
-#                                 results_recognition=results_recognition_iou)
-#         print_digit_counts(results_recognition_iou.partial_measure)
-#
-#     # -- Case Inter --
-#     # Localisation (intersection)
-#     results_localization_inter = ResultsLocalization(total_truth=total_gt,
-#                                                      total_predicted=total_predicted,
-#                                                      thresh=inter_thresh)
-#     results_localization_inter.true_positive, results_localization_inter.false_positive, \
-#         list_correct_boxes_inter = evaluation_digit_localisation(labels_matrix, final_boxes, thresh=inter_thresh, iou=False)
-#     results_localization_inter.compute_metrics()
-#
-#     # Recognition for Intersection
-#     results_recognition_inter = ResultsRecognition(total_truth=len(list_correct_boxes_inter),
-#                                                    total_predicted=len(list_correct_boxes_inter),
-#                                                    thresh=inter_thresh)
-#     results_recognition_inter.true_positive, results_recognition_inter.false_positive, \
-#         results_recognition_inter.partial_recognition \
-#         = evaluation_digit_recognition(labels_matrix, list_correct_boxes_inter)
-#     results_recognition_inter.compute_metrics()
-#
-#     if printing:
-#         print_evaluation_digits(results_localization=results_localization_inter,
-#                                 results_recognition=results_recognition_inter)
-#
-#         print_digit_counts(results_recognition_inter.partial_measure)
-#
-#     results = {'localization_inter': results_localization_inter,
-#                'localization_iou': results_localization_iou,
-#                'recognition_inter': results_recognition_inter,
-#                'recognition_iou': results_recognition_iou}
-#
-#     return results
 
 def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str,
                             thresh=0.5, use_iou=False, printing=True) -> (ResultsLocalization, ResultsRecognition):

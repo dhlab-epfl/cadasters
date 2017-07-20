@@ -60,28 +60,6 @@ def print_evaluation_parcels(results: ResultsLocalization) -> None:
 # --------------------------------------------------------------------------
 
 
-# def global_evaluation_parcels(dic_polygon, groundtruth_parcels_filename, iou_thresh_parcels=0.6, printing=True):
-#     # Open image and give a unique label to each parcel
-#     image_parcels_gt = cv2.imread(groundtruth_parcels_filename, cv2.IMREAD_GRAYSCALE)
-#     image_parcels_gt = np.uint8(image_parcels_gt > 128) * 255
-#     n_labels_poly, parcels_labeled = cv2.connectedComponents(image_parcels_gt)
-#
-#     # Evaluate
-#     correct_poly, incorrect_poly = evalutation_parcel_iou(parcels_labeled, dic_polygon,
-#                                                           iou_thresh=iou_thresh_parcels)
-#
-#     results_evaluation_parcels = {'total_groundtruth': n_labels_poly - 1,
-#                                   'total_extracted': correct_poly + incorrect_poly,
-#                                   'true_positive': correct_poly,
-#                                   'false_positive': incorrect_poly,
-#                                   'precision': correct_poly / (correct_poly + incorrect_poly),
-#                                   'recall': correct_poly / (n_labels_poly - 1)
-#                                   }
-#     if printing:
-#         print_evaluation_parcels(results_evaluation_parcels)
-#
-#     return results_evaluation_parcels
-
 def global_evaluation_parcels(dic_polygon: dict, groundtruth_parcels_filename: str,
                               iou_thresh_parcels=0.6, printing=True) -> ResultsLocalization:
     # Open image and give a unique label to each parcel
@@ -98,15 +76,6 @@ def global_evaluation_parcels(dic_polygon: dict, groundtruth_parcels_filename: s
                                                      total_predicted=correct_poly + incorrect_poly,
                                                      total_truth=n_labels_poly - 1)
     results_evaluation_parcels.compute_metrics()
-
-    #
-    # results_evaluation_parcels = {'total_groundtruth': n_labels_poly - 1,
-    #                               'total_extracted': correct_poly + incorrect_poly,
-    #                               'true_positive': correct_poly,
-    #                               'false_positive': incorrect_poly,
-    #                               'precision': correct_poly / (correct_poly + incorrect_poly),
-    #                               'recall': correct_poly / (n_labels_poly - 1)
-    #                               }
 
     if printing:
         print_evaluation_parcels(results_evaluation_parcels)
