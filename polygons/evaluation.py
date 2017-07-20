@@ -52,7 +52,7 @@ def print_evaluation_parcels(results: ResultsLocalization) -> None:
                results.total_groundtruth,
                results.recall))
 
-    print('\t\tNumber incorrect polygons : {}/{} ({:,02f})'.
+    print('\t\tNumber incorrect polygons : {}/{} ({:.02f})'.
           format(results.false_positive,
                  results.total_predicted, results.false_positive/results.total_predicted))
 

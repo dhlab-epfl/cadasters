@@ -81,7 +81,8 @@ def get_labelled_digits_matrix(filename_digits_labelled: str) -> np.array:
 # ---------------------------------------------------------------------
 
 
-def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: list) -> (int, int, np.array):
+def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: list,
+                                 result_recognition: ResultsRecognition):
 
     # Number of false and true positives
     n_false_positives = 0
@@ -132,12 +133,17 @@ def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: l
                 list_partial_numbers_results.append([lev_dist, 0, len(str(correct_label))])
                 list_tup_predicted_correct.append((predicted_number, correct_label))
 
-    # Transform to numpy array
-    return n_true_positives, n_false_positives, np.array(list_partial_numbers_results)
+        result_recognition.total_chars += len(predicted_number)
+
+    result_recognition.true_positive = n_true_positives
+    result_recognition.false_positive = n_false_positives
+    result_recognition.partial_recognition = np.array(list_partial_numbers_results)
+
 # ---------------------------------------------------------------------
 
 
-def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, thresh=0.5, iou=True) -> (int, int, list):
+def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, result_localization: ResultsLocalization,
+                                  thresh=0.5, iou=True)-> list:
     nb_correct_box = 0
     nb_incorrect_box = 0
 
@@ -179,7 +185,9 @@ def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, thresh=0
         else:
             nb_incorrect_box += 1
 
-    return nb_correct_box, nb_incorrect_box, list_correct_boxes
+    result_localization.true_positive = nb_correct_box
+    result_localization.false_positive = nb_incorrect_box
+    return list_correct_boxes
 
 
 def print_evaluation_digits(results_localization: ResultsLocalization, results_recognition: ResultsRecognition) -> None:
@@ -219,16 +227,15 @@ def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filenam
     results_localization = ResultsLocalization(total_truth=total_gt,
                                                total_predicted=total_predicted,
                                                thresh=thresh)
-    results_localization.true_positive, results_localization.false_positive, list_correct_boxes \
-        = evaluation_digit_localisation(labels_matrix, final_boxes, thresh=thresh, iou=use_iou)
+    list_correct_boxes = evaluation_digit_localisation(labels_matrix, final_boxes, results_localization, thresh=thresh,
+                                                       iou=use_iou)
     results_localization.compute_metrics()
 
     # Recognition
     results_recognition = ResultsRecognition(total_truth=len(list_correct_boxes),
                                              total_predicted=len(list_correct_boxes),
                                              thresh=thresh)
-    results_recognition.true_positive, results_recognition.false_positive, results_recognition.partial_recognition \
-        = evaluation_digit_recognition(labels_matrix, list_correct_boxes)
+    evaluation_digit_recognition(labels_matrix, list_correct_boxes, results_recognition)
     results_recognition.compute_metrics()
 
     if printing:
