@@ -107,11 +107,41 @@ def rotate_image(image, angle):
         image_center = tuple(np.array(image.shape[:2])/2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
         new_shape = np.array([image.shape[1], image.shape[0]])
-        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LINEAR)
+        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LANCZOS4,
+                                 # borderMode=cv2.BORDER_REFLECT
+                                 )
     else:
         image_center = tuple(np.array(image.shape)/2)
         rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
         new_shape = np.array([image.shape[1], image.shape[0]])
-        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LINEAR)
+        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LANCZOS4,
+                                 # borderMode=cv2.BORDER_REFLECT
+                                 )
 
     return rotated
+
+
+def rotate_image_with_mat(image, angle):
+    """
+    Rotates image with the specified angle
+    :param image: image to be rotated
+    :param angle: angle of rotation. if angle < 0 : clockwise rotation, if angle > 0 : counter-clockwise rotation
+    :return: rotated image and rotation matrix
+    """
+
+    if len(image.shape) > 2:
+        image_center = tuple(np.array(image.shape[:2])/2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        new_shape = np.array([image.shape[1], image.shape[0]])
+        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LANCZOS4,
+                                 borderMode=cv2.BORDER_REFLECT
+                                 )
+    else:
+        image_center = tuple(np.array(image.shape)/2)
+        rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        new_shape = np.array([image.shape[1], image.shape[0]])
+        rotated = cv2.warpAffine(image, rot_mat, tuple(new_shape), flags=cv2.INTER_LANCZOS4,
+                                 borderMode=cv2.BORDER_REFLECT
+                                 )
+
+    return rotated, rot_mat

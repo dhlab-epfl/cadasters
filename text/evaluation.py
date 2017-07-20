@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from collections import Counter
 from scipy import misc
-from helpers import minimum_edit_distance, count_correct_characters
+from helpers import minimum_edit_distance, count_correct_characters, ResultsLocalization, ResultsRecognition
 
 
 def make_mask_pointPolyTest(mask_shape, contours, distance=False):
@@ -26,20 +26,20 @@ def make_mask_pointPolyTest(mask_shape, contours, distance=False):
 # ------------------------------------------------------------------
 
 
-def print_digit_counts(counts_digits):
+def print_digit_counts(counts_digits) -> None:
 
     total_counts = sum(np.array([counts_digits[i] for i in counts_digits.keys()]))
 
     str_to_print = ''
     for i in sorted(counts_digits.keys(), reverse=True):
         str_to_print += '\t{} digit(s) : {}/{} ({:.02f})\n'.format(i, counts_digits[i], total_counts,
-                                                                       counts_digits[i] / total_counts)
+                                                                   counts_digits[i] / total_counts)
     return str_to_print
 
 # ------------------------------------------------------------------
 
 
-def get_labelled_digits_matrix(filename_digits_labelled):
+def get_labelled_digits_matrix(filename_digits_labelled: str) -> np.array:
     """
     From the RGB image (h x w x 3), reconstruct the matrix of labels of the digits for evaluation
     :param filename_digits_labelled: filename of labelled digit image
@@ -81,7 +81,8 @@ def get_labelled_digits_matrix(filename_digits_labelled):
 # ---------------------------------------------------------------------
 
 
-def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
+def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: list,
+                                 result_recognition: ResultsRecognition):
 
     # Number of false and true positives
     n_false_positives = 0
@@ -107,6 +108,9 @@ def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
                 continue
 
         # Evaluate if the extracted digit is correctly recognized
+        if not predicted_number:
+            list_partial_numbers_results.append([0, 0, len(str(correct_label))])
+            continue
         if correct_label == int(predicted_number):
             n_true_positives += 1
         else:
@@ -129,35 +133,21 @@ def evaluation_digit_recognition(label_matrix, list_extracted_boxes):
                 list_partial_numbers_results.append([lev_dist, 0, len(str(correct_label))])
                 list_tup_predicted_correct.append((predicted_number, correct_label))
 
-    # Transform to numpy array
-    return n_true_positives, n_false_positives, np.array(list_partial_numbers_results)
+        result_recognition.total_chars += len(predicted_number)
+
+    result_recognition.true_positive = n_true_positives
+    result_recognition.false_positive = n_false_positives
+    result_recognition.partial_recognition = np.array(list_partial_numbers_results)
+
 # ---------------------------------------------------------------------
 
 
-def interpret_digit_results(n_true_positives, n_false_positives, partial_numbers_results, n_labels):
+def evaluation_digit_localisation(digits_groundtruth, list_boxes: list, result_localization: ResultsLocalization,
+                                  thresh=0.5, iou=True)-> list:
+    nb_correct_box = 0
+    nb_incorrect_box = 0
 
-    n_partial_numbers = partial_numbers_results.shape[0]
-    n_predicted_numbers = n_partial_numbers + n_true_positives + n_false_positives
-
-    sums_results = np.sum(partial_numbers_results, axis=0)
-
-    # Character Error Rate
-    CER = sums_results[0] / sums_results[2]
-    counts_digits = Counter(partial_numbers_results[:, 1])
-
-    print('CER : {:.02f}'.format(CER))
-
-    print('Partial retrieval {}/{} ({:.02f})'.format(n_partial_numbers, n_labels, n_partial_numbers / n_labels))
-
-    # Print results by number of correctly retrieved digit
-    print(print_digit_counts(counts_digits))
-
-    return CER, counts_digits
-
-
-def evaluation_digit_localisation(digits_groundtruth, list_boxes, thresh=0.5, iou=True):
-    correct_box = 0
-    incorrect_box = 0
+    list_correct_boxes = list()
 
     for box in list_boxes:
 
@@ -172,10 +162,10 @@ def evaluation_digit_localisation(digits_groundtruth, list_boxes, thresh=0.5, io
             try:
                 label_box = most_comon_labs[1][0]
                 if label_box == 0:
-                    incorrect_box += 1
+                    nb_incorrect_box += 1
                     continue
             except IndexError:
-                incorrect_box += 1
+                nb_incorrect_box += 1
                 continue
 
         # Compute intersection over union (IoU)
@@ -190,75 +180,68 @@ def evaluation_digit_localisation(digits_groundtruth, list_boxes, thresh=0.5, io
             measure = np.sum(intersection.flatten(), dtype=float)/np.sum(gt_box.flatten(), dtype=float)
 
         if measure >= thresh:
-            correct_box += 1
+            nb_correct_box += 1
+            list_correct_boxes.append(box)
         else:
-            incorrect_box += 1
+            nb_incorrect_box += 1
 
-    return correct_box, incorrect_box
+    result_localization.true_positive = nb_correct_box
+    result_localization.false_positive = nb_incorrect_box
+    return list_correct_boxes
 
 
-def print_evaluation_digits(results_evaluation_digits):
+def print_evaluation_digits(results_localization: ResultsLocalization, results_recognition: ResultsRecognition) -> None:
     print('\t__Evaluation of ID localization and recognition__')
     print('\t__Evaluation of ID localization')
-    print('\tCorrect localized numbers (IoU) : {}/{} ({:.02f})'
-          .format(results_evaluation_digits['true_positive_box_iou'],
-                 results_evaluation_digits['total_groundtruth'],
-                 results_evaluation_digits['true_positive_box_iou'] / results_evaluation_digits['total_groundtruth']))
-    print('\tFalse positive (IoU) : {}/{} ({:.02f})'.
-          format(results_evaluation_digits['false_positive_box_iou'],
-                  results_evaluation_digits['total_predicted'],
-                  results_evaluation_digits['false_positive_box_iou'] / results_evaluation_digits['total_predicted']))
-
-    print('\tCorrect localized numbers (intersection) : {}/{} ({:.02f})'
-          .format(results_evaluation_digits['true_positive_box_inter'],
-                 results_evaluation_digits['total_groundtruth'],
-                 results_evaluation_digits['true_positive_box_inter'] / results_evaluation_digits['total_groundtruth']))
-    print('\tFalse positive (intersection) : {}/{} ({:.02f})'
-          .format(results_evaluation_digits['false_positive_box_inter'],
-                  results_evaluation_digits['total_predicted'],
-                  results_evaluation_digits['false_positive_box_inter'] / results_evaluation_digits['total_predicted']))
+    print('\tCorrect localized numbers : {}/{} (recall : {:.02f})'.format(results_localization.true_positive,
+                                                                          results_localization.total_groundtruth,
+                                                                          results_localization.recall))
+    print('\tFalse positive : {}/{} (precision : {:.02f})'.format(results_localization.false_positive,
+                                                                  results_localization.total_predicted,
+                                                                  results_localization.precision))
 
     print('\t__Evaluation of ID recognition__')
-    print('\tCorrect recognized numbers : {}/{} ({:.02f})'.format(results_evaluation_digits['true_positive_numbers'],
-                                                                  results_evaluation_digits['total_groundtruth'],
-                                                                  results_evaluation_digits['true_positive_numbers'] /
-                                                                  results_evaluation_digits['total_groundtruth']))
-    print('\tFalse positive : {}/{} ({:.02f})'.format(results_evaluation_digits['false_positive_numbers'],
-                                                      results_evaluation_digits['total_predicted'],
-                                                      results_evaluation_digits['false_positive_numbers'] /
-                                                      results_evaluation_digits['total_predicted']))
+    print('\tCorrect recognized numbers : {}/{} (recall : {:.02f})'.format(results_recognition.true_positive,
+                                                                           results_recognition.total_groundtruth,
+                                                                           results_recognition.recall))
+    print('\t Character Error Rate (CER) : {}'.format(results_recognition.cer))
 
 
-def global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                            iou_thresh=0.5, inter_thresh=0.8):
-    # Evaluation
-    results_evaluation_digits = dict()
+def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str,
+                            thresh=0.5, use_iou=False, printing=True) -> (ResultsLocalization, ResultsRecognition):
+    """
+
+    :param final_boxes:
+    :param groundtruth_labels_digits_filename:
+    :param use_iou:
+    :param thresh:
+    :param printing:
+    :return:
+    """
+
     labels_matrix = get_labelled_digits_matrix(groundtruth_labels_digits_filename)
+    total_gt = len(np.unique(labels_matrix)) - 1
+    total_predicted = len(final_boxes)
 
-    # Localization, (IOU)
-    results_evaluation_digits['true_positive_box_iou'], \
-        results_evaluation_digits['false_positive_box_iou'] \
-        = evaluation_digit_localisation(labels_matrix, final_boxes, thresh=iou_thresh, iou=True)
-
-    # Localisation (intersection)
-    results_evaluation_digits['true_positive_box_inter'], \
-        results_evaluation_digits['false_positive_box_inter'] \
-        = evaluation_digit_localisation(labels_matrix, final_boxes, thresh=inter_thresh, iou=False)
+    # Localisation
+    results_localization = ResultsLocalization(total_truth=total_gt,
+                                               total_predicted=total_predicted,
+                                               thresh=thresh)
+    list_correct_boxes = evaluation_digit_localisation(labels_matrix, final_boxes, results_localization, thresh=thresh,
+                                                       iou=use_iou)
+    results_localization.compute_metrics()
 
     # Recognition
-    results_evaluation_digits['true_positive_numbers'], \
-        results_evaluation_digits['false_positive_numbers'], \
-        results_evaluation_digits['partial_numbers_results'] \
-        = evaluation_digit_recognition(labels_matrix, final_boxes)
+    results_recognition = ResultsRecognition(total_truth=len(list_correct_boxes),
+                                             total_predicted=len(list_correct_boxes),
+                                             thresh=thresh)
+    evaluation_digit_recognition(labels_matrix, list_correct_boxes, results_recognition)
+    results_recognition.compute_metrics()
 
-    results_evaluation_digits['total_groundtruth'] = len(np.unique(labels_matrix)) - 1
-    results_evaluation_digits['total_predicted'] = len(final_boxes)
+    if printing:
+        print_evaluation_digits(results_localization=results_localization,
+                                results_recognition=results_recognition)
 
-    print_evaluation_digits(results_evaluation_digits)
+        print_digit_counts(results_recognition.partial_measure)
 
-    CER, counts_digits = interpret_digit_results(results_evaluation_digits['true_positive_numbers'],
-                                                 results_evaluation_digits['false_positive_numbers'],
-                                                 results_evaluation_digits['partial_numbers_results'],
-                                                 results_evaluation_digits['total_groundtruth'])
-
-    return results_evaluation_digits, CER, counts_digits
+    return results_localization, results_recognition

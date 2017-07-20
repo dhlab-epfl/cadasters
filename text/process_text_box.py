@@ -95,3 +95,74 @@ def crop_object(bin_img):
     w = min([bin_img.shape[0], y+w+2*nborder]) - y
 
     return bin_img[x:x+w, y:y+h], (y, x, h, w)
+
+
+def find_text_orientation_from_box(box, full_img):
+    # Expand box
+    box.expand_box(padding=2)
+
+    img_gray = cv2.cvtColor(full_img, cv2.COLOR_BGR2GRAY)
+
+    # Crop
+    crop_img_gray, (xmin, xmax, ymin, ymax) = crop_box(box, img_gray)
+
+    # Binarize to have the general shape so that we can dilate it as a
+    # blob and find the orientation of the blob
+
+    # Binarization
+    blur = cv2.GaussianBlur(crop_img_gray, (3, 3), 0)
+    ret, binary_crop = cv2.threshold(blur, 0, np.max(crop_img_gray), cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    inv_crop = np.uint8(255 * (binary_crop < 1))
+    # Morphology _ dilation
+    dilated = cv2.dilate(inv_crop, np.ones((5, 5), np.uint8))
+    # Find orientation with PCA
+    center, eigvect, angle = find_orientation(dilated)
+
+    return center, eigvect, angle
+
+
+def crop_with_margin(crop_coords, full_img, margin=2):
+    """
+
+    :param box_coords: (xmin, xmax, ymin, ymax)
+    :param full_img:
+    :param margin:
+    :return:
+    """
+
+    xmin, xmax, ymin, ymax = crop_coords
+    shape = full_img.shape[:2]
+
+    xmin = np.maximum(0, xmin - margin)
+    xmax = np.minimum(shape[1], xmax + margin)
+    ymin = np.maximum(0, ymin - margin)
+    ymax = np.minimum(shape[0], ymax + margin)
+
+    crop = full_img[ymin:ymax+1, xmin:xmax+1].copy()
+
+    return crop
+
+
+def custom_bounding_rect(box_points):
+    xmin = np.min(box_points[:, 0])
+    xmax = np.max(box_points[:, 0])
+    ymin = np.min(box_points[:, 1])
+    ymax = np.max(box_points[:, 1])
+
+    return np.array([[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]])
+
+
+def add_margin_to_rectangle(rect_coords, margin):
+    margin_array = np.array([[-margin, -margin], [margin, -margin], [margin, margin], [-margin, margin]])
+    new_coords = rect_coords + margin_array
+
+    return new_coords
+
+
+def check_validity_points(points, max_shape):
+    points[:, 0] = np.maximum(points[:, 0], np.zeros(points[:, 0].shape))
+    points[:, 0] = np.minimum(points[:, 0], max_shape[1] * np.ones(points[:, 0].shape))
+    points[:, 1] = np.maximum(points[:, 1], np.zeros(points[:, 1].shape))
+    points[:, 1] = np.minimum(points[:, 1], max_shape[0] * np.ones(points[:, 1].shape))
+
+    return points
