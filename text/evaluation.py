@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 from collections import Counter
 from scipy import misc
-from helpers import minimum_edit_distance, count_correct_characters, ResultsLocalization, ResultsRecognition
+from helpers import minimum_edit_distance, count_correct_characters, \
+    ResultsLocalization, ResultsRecognition, BoxLabelPrediction
 
 
 def make_mask_pointPolyTest(mask_shape, contours, distance=False):
@@ -82,7 +83,7 @@ def get_labelled_digits_matrix(filename_digits_labelled: str) -> np.array:
 
 
 def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: list,
-                                 result_recognition: ResultsRecognition):
+                                 result_recognition: ResultsRecognition) -> list():
 
     # Number of false and true positives
     n_false_positives = 0
@@ -91,6 +92,8 @@ def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: l
     list_partial_numbers_results = list()
     # List of tuples (predicted_number, correct_number) (only for partially correct numbers)
     list_tup_predicted_correct = list()
+    # List of BoxLabelPrediction for evaluation
+    box_prediction_list = list()
 
     for box in list_extracted_boxes:
         predicted_number = box.prediction_number[0]
@@ -133,11 +136,18 @@ def evaluation_digit_recognition(label_matrix: np.array, list_extracted_boxes: l
                 list_partial_numbers_results.append([lev_dist, 0, len(str(correct_label))])
                 list_tup_predicted_correct.append((predicted_number, correct_label))
 
+        box_prediction_list.append(BoxLabelPrediction(prediction=predicted_number,
+                                                      groundtruth=correct_label,
+                                                      confidence=box.prediction_number[1],
+                                                      points=box.original_box_pts))
+
         result_recognition.total_chars += len(predicted_number)
 
     result_recognition.true_positive = n_true_positives
     result_recognition.false_positive = n_false_positives
     result_recognition.partial_recognition = np.array(list_partial_numbers_results)
+
+    return box_prediction_list
 
 # ---------------------------------------------------------------------
 
@@ -207,8 +217,8 @@ def print_evaluation_digits(results_localization: ResultsLocalization, results_r
     print('\t Character Error Rate (CER) : {}'.format(results_recognition.cer))
 
 
-def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str,
-                            thresh=0.5, use_iou=False, printing=True) -> (ResultsLocalization, ResultsRecognition):
+def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str, thresh=0.5, use_iou=False,
+                            printing=True) -> (ResultsLocalization, ResultsRecognition, BoxLabelPrediction):
     """
 
     :param final_boxes:
@@ -235,7 +245,7 @@ def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filenam
     results_recognition = ResultsRecognition(total_truth=len(list_correct_boxes),
                                              total_predicted=len(list_correct_boxes),
                                              thresh=thresh)
-    evaluation_digit_recognition(labels_matrix, list_correct_boxes, results_recognition)
+    box_prediction_list = evaluation_digit_recognition(labels_matrix, list_correct_boxes, results_recognition)
     results_recognition.compute_metrics()
 
     if printing:
@@ -244,4 +254,4 @@ def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filenam
 
         print_digit_counts(results_recognition.partial_measure)
 
-    return results_localization, results_recognition
+    return results_localization, results_recognition, box_prediction_list

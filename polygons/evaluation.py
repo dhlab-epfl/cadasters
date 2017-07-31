@@ -73,6 +73,7 @@ def global_evaluation_parcels(dic_polygon: dict, groundtruth_parcels_filename: s
 
     results_evaluation_parcels = ResultsLocalization(true_positives=correct_poly,
                                                      false_positives=incorrect_poly,
+                                                     thresh=iou_thresh_parcels,
                                                      total_predicted=correct_poly + incorrect_poly,
                                                      total_truth=n_labels_poly - 1)
     results_evaluation_parcels.compute_metrics()

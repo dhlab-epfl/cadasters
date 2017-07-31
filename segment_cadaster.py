@@ -17,7 +17,7 @@ except ImportError:
 
 
 def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, tf_model_dir=None,
-                     show_plots=True, evaluation=False, debug=False):
+                     show_plots=True, evaluation=False, debug=False, gpu_device=''):
     """
     Launches the segmentation of the cadaster image and outputs
 
@@ -46,11 +46,17 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     :param debug: Boolean. Saves the graph and useful variable after each step to ease debug.
     """
 
+    # Session config for tensorflow
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_device
+    config_sess = tf.ConfigProto()
+    config_sess.gpu_options.per_process_gpu_memory_fraction = 0.5
+
     stop_criterion = params_merge['stop_criterion']
     similarity_method = params_merge['similarity_method']
     assert similarity_method in ['cie2000', 'coloredge', 'edges']
 
     filename_classifier = 'data/svm_classifier.pkl'
+    tf_model_class_dir = 'data/models/classification'
 
     # Create output folder if it does not exist
     if not os.path.exists(output_path):
@@ -457,12 +463,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
         # Restore model and then predict one by one the images -> not optimal (batch instead)!!
         sess = tf.Session()
-        # crnn_savedmodel_dir = './exported_models/1499264748/'
-
-        def _signature_def_to_tensors(signature_def):
-            g = tf.get_default_graph()
-            return {k: g.get_tensor_by_name(v.name) for k, v in signature_def.inputs.items()}, \
-                   {k: g.get_tensor_by_name(v.name) for k, v in signature_def.outputs.items()}
 
         loaded_model = tf.saved_model.loader.load(sess, ['serve'], tf_model_dir)
         input_dict, output_dict = _signature_def_to_tensors(loaded_model.signature_def['predictions'])
@@ -479,10 +479,10 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             crop_img = img_filt[y:y+h, x:x+w].copy()
             rotated_crop, rot_mat = helpers.rotate_image_with_mat(crop_img.copy(), angle)
 
-            cv2.imwrite(os.path.join(path_digits, '{}_crop.jpg'.format(box.box_id)),
-                        crop_img)
-            cv2.imwrite(os.path.join(path_digits, '{}_rot.jpg'.format(box.box_id)),
-                        rotated_crop)
+            # cv2.imwrite(os.path.join(path_digits, '{}_crop.jpg'.format(box.box_id)),
+            #             crop_img)
+            # cv2.imwrite(os.path.join(path_digits, '{}_rot.jpg'.format(box.box_id)),
+            #             rotated_crop)
 
             # Get the box points with the new rotated coordinates
             box_pts_offset_crop = box.original_box_pts.copy()
@@ -555,13 +555,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # -- IOU evaluation
         iou_thresh_digits = 0.5
         print('-- Evaluation IoU ({})--'.format(iou_thresh_digits))
-        results_localization_iou, results_recognition_iou = \
-            txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                                        thresh=iou_thresh_digits, use_iou=True, printing=True)
+        results_localization_iou, results_recognition_iou, box_prediction_list_iou \
+            = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
+                                          thresh=iou_thresh_digits, use_iou=True, printing=True)
         # -- inter evaluation
         inter_thresh_digits = 0.8
         print('-- Evaluation INTER -- ({})'.format(inter_thresh_digits))
-        results_localization_inter, results_recognition_inter\
+        results_localization_inter, results_recognition_inter, box_predition_list_inter\
             = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
                                           thresh=inter_thresh_digits, use_iou=False, printing=True)
 
@@ -594,6 +594,12 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 # ----------------------------------------------------------------------------------------
 
 
+def _signature_def_to_tensors(signature_def):
+    g = tf.get_default_graph()
+    return {k: g.get_tensor_by_name(v.name) for k, v in signature_def.inputs.items()}, \
+           {k: g.get_tensor_by_name(v.name) for k, v in signature_def.outputs.items()}
+
+
 if __name__ == '__main__':
     # Parsing
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
@@ -604,7 +610,7 @@ if __name__ == '__main__':
                                                              'Default : data/svm_classifier.pkl',
                         default='data/svm_classifier.pkl')
     parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
-                        default='data/models/crnn_numbers')
+                        default='data/models/crnn-vtm-mnist')
     parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
                                                                 'SLIC algorithm using a percentage of the total number '
                                                                 'of pixels. Give a percentage between 0 and 1.'
@@ -616,6 +622,7 @@ if __name__ == '__main__':
                                                                'available in folder data/data_evaluation). Default : 0',
                         default=False)
     parser.add_argument('-d', '--debug', type=bool, help='Debug flag. 1 to activate. Default : 0', default=False)
+    parser.add_argument('-g', '--gpu', type=str, help='GPU device, ('' For CPU)', default='')
 
     args = parser.parse_args()
 
@@ -630,4 +637,4 @@ if __name__ == '__main__':
 
     # Launch segmentation
     segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, tf_model_dir=args.tensorflow_model,
-                     show_plots=args.plot, evaluation=args.evaluation, debug=args.debug)
+                     show_plots=args.plot, evaluation=args.evaluation, debug=args.debug, gpu_device=args.gpu)
