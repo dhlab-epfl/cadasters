@@ -50,6 +50,46 @@ class ResultsRecognition:
         self.partial_measure = Counter(self.partial_recognition[:, 1])
 
 
+class BoxesAnalysis:
+
+    def __init__(self, **kwargs):
+        self.list_boxes = kwargs.get('boxes')
+        self.correct_boxes, self.incorrect_boxes = self._separate_correct_from_incorrect()
+        self.insertion_rate, self.deletion_rate, \
+            self.substitution_rate, self.edit_distance_count = self._compute_error_rates()
+
+    def _separate_correct_from_incorrect(self):
+        correct_box_list, incorrect_box_list = list(), list()
+        for box in self.list_boxes:
+            # Get incorrect boxes
+            if box.correctness:
+                correct_box_list.append(box)
+            else:
+                incorrect_box_list.append(box)
+
+        return correct_box_list, incorrect_box_list
+
+    def _compute_error_rates(self):
+        insertion, deletion, substitution = 0, 0, 0
+        distances = list()
+        for box in self.incorrect_boxes:
+            type_error = box.error_type
+            distances.append(box.edit_distance)
+            if type_error == LabelErrorType.INSERTION:
+                insertion += 1
+            elif type_error == LabelErrorType.DELETION:
+                deletion += 1
+            elif type_error == LabelErrorType.SUBSTITUTION:
+                substitution += 1
+
+        insertion_rate = insertion / len(self.incorrect_boxes)
+        deletion_rate = deletion / len(self.incorrect_boxes)
+        substitution_rate = substitution / len(self.incorrect_boxes)
+        edit_distances_count = Counter(distances)
+
+        return insertion_rate, deletion_rate, substitution_rate, edit_distances_count
+
+
 class BoxLabelPrediction:
 
     def __init__(self, **kwargs):
@@ -88,7 +128,7 @@ class BoxLabelPrediction:
                 error_type = LabelErrorType.DELETION
                 distance = minimum_edit_distance(groundtruth_str, prediction_str)
             elif len(groundtruth_str) < len(prediction_str):
-                error_type = LabelErrorType.ADDITION
+                error_type = LabelErrorType.INSERTION
                 distance = minimum_edit_distance(groundtruth_str, prediction_str)
             else:
                 raise NotImplementedError
