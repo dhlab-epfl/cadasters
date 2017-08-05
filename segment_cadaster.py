@@ -610,7 +610,7 @@ if __name__ == '__main__':
                                                              'Default : data/svm_classifier.pkl',
                         default='data/svm_classifier.pkl')
     parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
-                        default='data/models/crnn-vtm-mnist')
+                        default='data/models/crnn_numbers')
     parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
                                                                 'SLIC algorithm using a percentage of the total number '
                                                                 'of pixels. Give a percentage between 0 and 1.'
