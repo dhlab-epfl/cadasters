@@ -561,7 +561,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # -- inter evaluation
         inter_thresh_digits = 0.8
         print('-- Evaluation INTER -- ({})'.format(inter_thresh_digits))
-        results_localization_inter, results_recognition_inter, box_predition_list_inter\
+        results_localization_inter, results_recognition_inter, \
+            boxes_predict_list_correct_located, boxes_predict_list_incorrect_located \
             = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
                                           thresh=inter_thresh_digits, use_iou=False, printing=True)
 
