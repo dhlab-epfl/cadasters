@@ -33,6 +33,9 @@ __ridge image__ : shows the result of the processing of ridge detection image, t
 
 __merged superpixels__ : shows the result of the merging process (better over-segmented than under-segmented, some corrections are applied later)
 
+#### CRNN
+The code for training the CRNN used to transcribe the labels can be found at https://github.com/solivr/tf-crnn
+
 ### Requirement
 * Python 3.5
 
