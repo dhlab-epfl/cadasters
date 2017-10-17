@@ -55,8 +55,6 @@ class ResultsTranscription:
             self.partial_measure = None
 
 
-
-
 class BoxLabelPrediction:
 
     def __init__(self, **kwargs):
@@ -90,7 +88,7 @@ class BoxLabelPrediction:
     def _compute_correctness(self) -> bool:
         return self.prediction == self.groundtruth
 
-    def _compute_error_type(self):
+    def _compute_error_type(self) -> (str, float):
         groundtruth_str = str(self.groundtruth)
         prediction_str = str(self.prediction)
         if groundtruth_str == prediction_str:
