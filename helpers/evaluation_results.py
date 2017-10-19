@@ -54,6 +54,10 @@ class ResultsTranscription:
             self.cer = sums_partials / self.total_chars
             self.partial_measure = None
 
+    def serialize(self):
+        self.partial_transcription = self.partial_transcription.tolist()
+        return self
+
 
 class BoxLabelPrediction:
 

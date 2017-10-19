@@ -1,7 +1,11 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
+from typing import List, Tuple
 
 
-def generate_vertices_and_edges(map_superpixels):
+def generate_vertices_and_edges(map_superpixels: np.array)-> (List[int], List[Tuple[int, int]]):
     """
     Generate connected graph with vertices and edges connecting neighbouring vertices
     :param map_superpixels: superpiexls resulting from superpixels segmentation (map of labels)

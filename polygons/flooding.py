@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 import cv2
 import uuid
@@ -74,7 +77,7 @@ def clean_image_ridge(img_ridge, ksize):
 # ---------------------------------------------------------------------------------------
 
 
-def Polygon2geoJSON(polyCV2, img_frangi, offset):
+def Polygon2geoJSON(polyCV2, img_frangi: np.array, offset: int) -> (str, list):
     """
     Given a ridge image and the contours of a possible polygon, runs the floodfill
     algorithm taking as seed point a pixel inside the possible parcel.

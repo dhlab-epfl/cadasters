@@ -3,7 +3,7 @@ __author__ = 'solivr'
 
 import datetime
 import numpy as np
-from helpers import Params
+from .config import Params
 from collections import Counter
 import json
 
@@ -40,7 +40,7 @@ def write_log_file(params: Params, **kwargs) -> None:
             log_file.write(json.dumps(vars(result_localization)))
 
             log_file.write('** Recognition\n')
-            log_file.write(json.dumps(vars(result_recognition)))
+            log_file.write(json.dumps(vars(result_recognition.serialize)))
             log_file.write('Partial retrieval)\n')
             log_file.write(print_digit_counts(result_recognition.partial_measure))
 

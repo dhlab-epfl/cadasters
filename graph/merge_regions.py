@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 import networkx as nx
 from graph import assign_feature_to_node, generate_vertices_and_edges, measure_similarity, contract_nodes
@@ -93,7 +96,8 @@ def edge_cut_with_mst(graph, list_segments, dict_features, similarity_method, st
 # ---------------------------------------------------------------------------------------------------
 
 
-def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method, mst=True, stop_std_val=5.0e-1):
+def edge_cut_minimize_std(graph: nx.Graph, slic_segments: np.array, dict_features: dict,
+                          similarity_method: str, mst: bool=True, stop_std_val: float=5.0e-1) -> nx.Graph:
     """
     Segments image by removing edges in the graph representation of the image. At each step, edges with high
     weight are removed and 'subgraphs' are formed (new connected components). In each subgraph the standard
@@ -102,7 +106,7 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
     (vertices) have been merged
 
     :param graph: Graph of the image to be segmented
-    :param list_segments: map of the segments' labels
+    :param slic_segments: map of the segments' labels
     :param dict_features: dictionnary containing all the features (to compute nodes characteristics
                             and edges similarities)
     :param similarity_method: similarity method to use in measure_similarity function (see function's doc)
@@ -115,7 +119,7 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
     """
 
     # Construct vertices and neighboring edges
-    vertices, edges = generate_vertices_and_edges(list_segments)
+    vertices, edges = generate_vertices_and_edges(slic_segments)
     # Add nodes and edges
     graph.add_nodes_from(vertices)
     graph.add_edges_from(edges)
@@ -128,8 +132,8 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
     #     dict_features['centers'] = centers
 
     # Feature assignment to each node
-    for seg_lbl in np.unique(list_segments):
-        assign_feature_to_node(graph, seg_lbl, list_segments, dict_features)
+    for seg_lbl in np.unique(slic_segments):
+        assign_feature_to_node(graph, seg_lbl, slic_segments, dict_features)
 
     tmp = measure_similarity(graph, similarity_method)
 
@@ -142,15 +146,13 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
         subG = list(nx.connected_component_subgraphs(graph))
         subG = sorted(subG, key=len, reverse=True)
 
-        # print('-- Size Graph : # subgraphs = {}'.format(len(subG)))
-
         # When all subgraphs with n_nodes >=3 have been treated, finish with 2 nodes and end
         if len(subG[0].edges()) == 1:
             # Merge the 2-nodes subgraphs still remaining
             for sg in subG:
-                if len(sg.nodes()) > 1: # not isolates
-                    merge_segments(list_segments, sg.nodes(), min(np.unique(list_segments))-1)
-                    contract_nodes(graph, sg.nodes(), min(np.unique(list_segments)))
+                if len(sg.nodes()) > 1:  # not isolates
+                    merge_segments(slic_segments, sg.nodes(), min(np.unique(slic_segments)) - 1)
+                    contract_nodes(graph, sg.nodes(), min(np.unique(slic_segments)))
                 else:
                     break
             break
@@ -166,8 +168,8 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
                 if std_sg > stop_std_val:
                     graph.remove_edge(*sg_edges_sorted[0][:2])
                 else:
-                    merge_segments(list_segments, sg.nodes(), min(np.unique(list_segments))-1)
-                    contract_nodes(graph, sg.nodes(), min(np.unique(list_segments)))
+                    merge_segments(slic_segments, sg.nodes(), min(np.unique(slic_segments)) - 1)
+                    contract_nodes(graph, sg.nodes(), min(np.unique(slic_segments)))
                     # print('Merging {} nodes'.format(len(sg.nodes())))
             else:
                 break
@@ -189,8 +191,8 @@ def edge_cut_minimize_std(graph, list_segments, dict_features, similarity_method
     #     dict_features['centers'] = centers
 
     # Feature assignment to each node
-    for seg_lbl in np.unique(list_segments):
-        assign_feature_to_node(graph, seg_lbl, list_segments, dict_features)
+    for seg_lbl in np.unique(slic_segments):
+        assign_feature_to_node(graph, seg_lbl, slic_segments, dict_features)
 
     return graph
 # -----------------------------------------------------------

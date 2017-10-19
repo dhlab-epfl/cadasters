@@ -2,6 +2,7 @@
 __author__ = 'solivr'
 
 import cv2, sys, os, pickle, copy, json, time, argparse
+from osgeo import gdal
 import numpy as np
 import networkx as nx
 import tensorflow as tf
@@ -18,7 +19,7 @@ except ImportError:
     pass
 
 
-def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir: str, params: Params) -> None:
+def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Params) -> None:
     """
     Launches the segmentation of the cadaster image and outputs
 
@@ -43,21 +44,18 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     # FILTERING
     #
     print('-- FILTERING --')
-    # ---------
     img_filt = image_filtering(img)
 
     #
     # SLIC
     #
     print('-- SLIC --')
-    # -----
     original_segments = compute_slic(helpers.bgr2rgb(img_filt), parameters)
 
     #
     # FEATURE EXTRACTION
     #
     print('-- FEATURE EXTRACTION --')
-    # ------------------
     try:
 
         with open(params.saving_filename_feats, 'rb') as handle:
@@ -75,7 +73,6 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     # GRAPHS AND MERGING
     #
     print('-- GRAPHS AND MERGING --')
-    # ------------------
     try:
         with open(params.saving_filename_graph, 'rb') as handle:
             G = pickle.load(handle)
@@ -104,14 +101,12 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
                          for sp in np.unique(original_segments)}
 
     if params.show_plots:
-        namefile = os.path.join(output_path, 'sp_merged.jpg')
-        helpers.show_superpixels(img_filt, nsegments, namefile)
+        helpers.show_superpixels(img_filt, nsegments, params.plots_filename_superpixels)
 
     #
     # CLASSIFICATION
     #
     print('-- CLASSIFICATION --')
-    # ---------------
     # Labels : 0 = Background, 1 = Text, 2 = Contours
 
     # Loading fitted classifier
@@ -130,12 +125,12 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     # PARCELS AND POLYGONS
     #
     print('-- PARCELS AND POLYGONS --')
-    # --------------------
+
     min_size_region = 3  # Regions should be formed at least of min_size_region merged original superpixels
-    bgclass = 0  # Label of 'background' class
+    # bgclass = 0  # Label of 'background' class
 
     # Find nodes that are classified as background class and that are bigger than min_size_region
-    bg_nodes_class = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == bgclass]
+    bg_nodes_class = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == params.label_background_class]
     bg_nodes_nsp = [tn for tn in bg_nodes_class if 'n_superpix' in G.node[tn]
                     and G.node[tn]['n_superpix'] > min_size_region]
 
@@ -151,9 +146,13 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
                                                               os.path.split(params.saving_filename_dicpoly)[-1]))
 
     except FileNotFoundError:
+        # Get geometric transform
+        ds = gdal.Open(filename_cadaster_img)
+        geo_transform = ds.GetGeoTransform()
+
         listFeatPolygon, dic_polygon = \
             polygons.find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
-                                  ksize_flooding, filename_cadaster_img)
+                                  ksize_flooding, geo_transform)
         if params.debug_flag:
             with open(params.saving_filename_listpoly, 'wb') as handle:
                 pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -167,12 +166,11 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
     #       the small one is on top and is accessible by clicking
 
-    if params.evaluation:
+    if params.evaluate:
         # Evaluate
-        iou_thresh_parcels = 0.7
         results_evaluation_parcels = \
             polygons.global_evaluation_parcels(dic_polygon, params.groundtruth_parcels_filename,
-                                               iou_thresh_parcels=iou_thresh_parcels)
+                                               iou_thresh_parcels=params.iou_threshold_parcels)
 
     #
     # Export geoJSON
@@ -206,7 +204,6 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     # TEXT PIXELS
     #
     print('__TEXT PIXELS__')
-    # ------------
 
     # Saving for debug
     try:
@@ -295,7 +292,6 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
         # BOUNDING BOXES
         #
         print('__BOUNDING BOXES__')
-        # ---------------
 
         # Build text graphs
         # -----------------
@@ -373,7 +369,6 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
         # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
         #
         print('__PROCESS BOX (ID RECOGNITION)__')
-        # -------------------------------------
         # Restore model and then predict one by one the images -> not optimal (batch instead)!!
         sess = tf.Session()
 
@@ -423,8 +418,8 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
             # Get 'words' and 'difference_logprob'
             predictions = sess.run(output_dict, feed_dict={input_dict['images']: crop_number_formatted})
 
-            number_predicted = predictions['words'].decode('utf-8')
-            confidence = predictions['score'][0]
+            number_predicted = predictions['words'][0].decode('utf8')
+            confidence = predictions['difference_logprob'][0]  # <<<<< TODO : change to 'score'
 
             try:
                 box.prediction_number = tuple([number_predicted,
@@ -459,16 +454,17 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
 
     #
     # Evaluation of predicted digits
-    if params.evaluation:
+    if params.evaluate:
         # -- IOU evaluation
         print('-- Evaluation IoU ({})--'.format(params.iou_threshold_digits))
-        results_localization_iou, results_recognition_iou, box_prediction_list_iou \
+        results_localization_iou, results_recognition_iou, \
+        boxes_predict_list_correct_located_iou, boxes_predict_list_incorrect_located_iou \
             = txt.global_digit_evaluation(final_boxes, params.groundtruth_labels_digits_filename,
                                           thresh=params.iou_threshold_digits, use_iou=True, printing=True)
         # -- inter evaluation
         print('-- Evaluation INTER -- ({})'.format(params.inter_threshold_digits))
         results_localization_inter, results_recognition_inter, \
-            boxes_predict_list_correct_located, boxes_predict_list_incorrect_located \
+            boxes_predict_list_correct_located_inter, boxes_predict_list_incorrect_located_inter \
             = txt.global_digit_evaluation(final_boxes, params.groundtruth_labels_digits_filename,
                                           thresh=params.inter_threshold_digits, use_iou=False, printing=True)
 
@@ -481,7 +477,7 @@ def segment_cadaster(filename_cadaster_img: str, output_path: str, tf_model_dir:
     # Write Log file
     elapsed_time = time.time() - t0
 
-    if params.evaluation:
+    if params.evaluate:
         helpers.write_log_file(params, elapsed_time=elapsed_time,
                                results_parcels_eval=results_evaluation_parcels,
                                results_digits_eval=results_digits_eval)
@@ -527,13 +523,8 @@ if __name__ == '__main__':
                         debug=args.get('debug'),
                         gpu=args.get('gpu'),
                         classifier_filename='data/svm_classifier.pkl',
-                        merging_similarity_method='cie2000',
-                        merging_stop_criterion=0.3,
-                        slic_percent=args.get('sp_percent'),
-                        slic_compactness=25,
-                        slic_sigma=2,
-                        slic_mode='RGB',
                         list_features=['Lab', 'laplacian', 'frangi', 'RGB'],
+                        iou_threshold_parcels=0.7,
                         iou_threshold_digits=0.5,
                         inter_threshold_digits=0.8)
 
@@ -542,13 +533,5 @@ if __name__ == '__main__':
     config_sess = tf.ConfigProto()
     config_sess.gpu_options.per_process_gpu_memory_fraction = 0.5
 
-    # Directory and files paths
-    # output_path = args.get('output_path')
-
-    # Params merging and slic
-    # params_merge = {'similarity_method': 'cie2000', 'stop_criterion': 0.3}
-    # params_slic = {'percent': args.get('sp_percent'), 'numCompact': 25, 'sigma': 2,
-    #                'mode': 'RGB'}
-
     # Launch segmentation
-    segment_cadaster(parameters.input_filenames, parameters.output_dir, parameters.tf_model_dir, parameters)
+    segment_cadaster(parameters.input_filenames, parameters.tf_model_dir, parameters)

@@ -11,6 +11,7 @@ class Params:
         self.classifier_filename = kwargs.get('classifier_filename')
         self.tf_model_dir = kwargs.get('tf_model_dir')  # Path of tensorflow model to be used for digit recognition.
         self.show_plots = kwargs.get('show_plots', True)  # To save intermediate plots of polygons and boxes
+        # TODO : Add tag and signature def of tf model as parameter
         # To evaluate the results (parcel extraction and digit recognition). A ground truth must exist in
         # data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
         self.evaluate = kwargs.get('evaluate', False)
@@ -31,9 +32,12 @@ class Params:
         self.slic_compactness = kwargs.get('slic_compactness', 25)  # parameter of compactness of SLIC algorithm
         self.slic_sigma = kwargs.get('slic_sigma', 2)  # width of gaussian kernel for smoothing in SLIC algorithm
         self.slic_mode = kwargs.get('slic_mode', 'RGB') # Channel(s) to which SLIC is applied
+        self.iou_threshold_parcels = kwargs.get('iou_threshold_parcels', 0.7)
         self.iou_threshold_digits = kwargs.get('iou_threshold_digits', 0.5)
         self.inter_threshold_digits = kwargs.get('inter_threshold_digits', 0.8)
         self.list_features = kwargs.get('list_features')
+        self.label_background_class =kwargs.get('label_background_class', 0)
+
         self.filename_geojson = os.path.join(self.output_dir, 'parcels_polygons.geojson')
         self.filename_log = os.path.join(self.output_dir, 'logs.txt')
 
@@ -62,7 +66,7 @@ class Params:
         assert self.output_dir is not None
         assert self.input_filenames is not None
 
-        if self.evaluation:
+        if self.evaluate:
             path_eval_split = os.path.split(self.input_filenames)
             # Get filename labelled parcels
             filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
@@ -76,7 +80,7 @@ class Params:
                     os.path.exists(self._groundtruth_labels_digits_filename):
                 pass
             else:
-                self.evaluation = False
+                self.evaluate = False
                 print('** ! WARNING ! : {} and/or {} ground truth file do not exist. Cannot perform evaluation'.format(
                     self._groundtruth_parcels_filename, self._groundtruth_labels_digits_filename))
                 self._groundtruth_parcels_filename, self._groundtruth_labels_digits_filename = None, None
@@ -94,6 +98,7 @@ class Params:
         self._dir_cropped_polygons = os.path.join(self.output_dir, 'cropped_polygons')
         os.makedirs(self._dir_cropped_polygons, exist_ok=True)
 
+        self._plots_filename_superpixels = os.path.join(self.output_dir, 'sp_merged.jpg')
         self._plots_filename_ridge = os.path.join(self.output_dir, 'ridges_to_flood.jpg')
         self._plots_filename_polygons = os.path.join(self.output_dir, 'polygons.jpg')
         self._plots_filename_class = os.path.join(self.output_dir, 'predicted3class.jpg')
@@ -111,7 +116,7 @@ class Params:
 
     @property
     def saving_filename_graph(self):
-        return self._saving_filename_feats
+        return self._saving_filename_graph
 
     @property
     def saving_filename_nsegments(self):
@@ -136,6 +141,10 @@ class Params:
     @property
     def groundtruth_labels_digits_filename(self):
         return self._groundtruth_labels_digits_filename
+
+    @property
+    def plots_filename_superpixels(self):
+        return self._plots_filename_superpixels
 
     @property
     def plots_filename_ridge(self):
