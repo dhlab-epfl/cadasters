@@ -124,16 +124,9 @@ def edge_cut_minimize_std(graph: nx.Graph, slic_segments: np.array, dict_feature
     graph.add_nodes_from(vertices)
     graph.add_edges_from(edges)
 
-    # if 'centers' in dict_features.keys():
-    #     # Compute region centers
-    #     gridx, gridy = np.mgrid[:list_segments.shape[0], :list_segments.shape[1]]
-    #     vertices = np.unique(list_segments)
-    #     centers = {v: [gridy[list_segments == v].mean(), gridx[list_segments == v].mean()] for v in vertices}
-    #     dict_features['centers'] = centers
-
     # Feature assignment to each node
-    for seg_lbl in np.unique(slic_segments):
-        assign_feature_to_node(graph, seg_lbl, slic_segments, dict_features)
+    for segments_lbl in np.unique(slic_segments):
+        assign_feature_to_node(graph, segments_lbl, slic_segments, dict_features)
 
     tmp = measure_similarity(graph, similarity_method)
 
@@ -181,18 +174,9 @@ def edge_cut_minimize_std(graph: nx.Graph, slic_segments: np.array, dict_feature
     # UPDATE ATTRIBUTE NODES
     # ----------------------
 
-    # if 'centers' in dict_features.keys():
-    #     gridx, gridy = np.mgrid[:list_segments.shape[0], :list_segments.shape[1]]
-    #     vertices = np.unique(list_segments)
-    #     centers = {v : [gridy[list_segments == v].mean(), gridx[list_segments == v].mean()] for v in vertices}
-    #     # centers = dict()
-    #     # for v in vertices:
-    #     #     centers[v] = [gridy[list_segments == v].mean(), gridx[list_segments == v].mean()]
-    #     dict_features['centers'] = centers
-
     # Feature assignment to each node
-    for seg_lbl in np.unique(slic_segments):
-        assign_feature_to_node(graph, seg_lbl, slic_segments, dict_features)
+    for segments_lbl in np.unique(slic_segments):
+        assign_feature_to_node(graph, segments_lbl, slic_segments, dict_features)
 
     return graph
 # -----------------------------------------------------------

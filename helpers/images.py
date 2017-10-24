@@ -50,14 +50,6 @@ def merge_segments(slic_segments: np.array, seg_to_merge: List[int], label: int)
     :param label: new label to assign to the merged segments
     """
 
-    # nb_seg = len(seg_to_merge)
-    # m1 = list_segments == seg_to_merge[0]
-    # for s in range(1, nb_seg):
-    #     m2 = list_segments == seg_to_merge[s]
-    #     m1 = np.logical_or(m1, m2)
-    #
-    # list_segments[m1] = label
-
     # Alternative
     for s in seg_to_merge:
         # Find where the segment to merge is

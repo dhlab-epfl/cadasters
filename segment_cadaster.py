@@ -24,7 +24,6 @@ def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Para
     Launches the segmentation of the cadaster image and outputs
 
     :param filename_cadaster_img: cadaster image to be processed
-    :param output_path: output directory to save the plots and the results
     :param tf_model_dir : Path of tensorflow model to be used for digit recognition.
     :param params : All the parameters needed (see helpers.config.Params)
     """
@@ -130,9 +129,9 @@ def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Para
     # bgclass = 0  # Label of 'background' class
 
     # Find nodes that are classified as background class and that are bigger than min_size_region
-    bg_nodes_class = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == params.label_background_class]
-    bg_nodes_nsp = [tn for tn in bg_nodes_class if 'n_superpix' in G.node[tn]
-                    and G.node[tn]['n_superpix'] > min_size_region]
+    bg_nodes = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == params.label_background_class]
+    background_class_nodes = [tn for tn in bg_nodes if 'n_superpix' in G.node[tn]
+                              and G.node[tn]['n_superpix'] > min_size_region]
 
     # Find parcels and export polygons in geoJSON format
     ksize_flooding = 2
@@ -151,8 +150,9 @@ def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Para
         geo_transform = ds.GetGeoTransform()
 
         listFeatPolygon, dic_polygon = \
-            polygons.find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
-                                  ksize_flooding, geo_transform)
+            polygons.find_parcels(background_class_nodes, nsegments, dict_features['frangi'],
+                                  ksize_flooding, geo_transform=geo_transform,
+                                  approximation_epsilon=params.polygon_approx_epsilon)
         if params.debug_flag:
             with open(params.saving_filename_listpoly, 'wb') as handle:
                 pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -419,7 +419,7 @@ def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Para
             predictions = sess.run(output_dict, feed_dict={input_dict['images']: crop_number_formatted})
 
             number_predicted = predictions['words'][0].decode('utf8')
-            confidence = predictions['difference_logprob'][0]  # <<<<< TODO : change to 'score'
+            confidence = predictions['score'][0]
 
             try:
                 box.prediction_number = tuple([number_predicted,

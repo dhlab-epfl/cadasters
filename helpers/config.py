@@ -36,7 +36,8 @@ class Params:
         self.iou_threshold_digits = kwargs.get('iou_threshold_digits', 0.5)
         self.inter_threshold_digits = kwargs.get('inter_threshold_digits', 0.8)
         self.list_features = kwargs.get('list_features')
-        self.label_background_class =kwargs.get('label_background_class', 0)
+        self.label_background_class = kwargs.get('label_background_class', 0)
+        self.polygon_approx_epsilon = kwargs.get('polygon_approx_epsilon', 3)
 
         self.filename_geojson = os.path.join(self.output_dir, 'parcels_polygons.geojson')
         self.filename_log = os.path.join(self.output_dir, 'logs.txt')
