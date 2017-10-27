@@ -7,7 +7,7 @@ import tensorflow as tf
 import sys
 import argparse
 import numpy as np
-from scipy.misc import imread
+from scipy.misc import imread, imsave
 ***REMOVED***
 from skimage.morphology import h_minima, watershed, label
 from utils import Polygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
@@ -23,7 +23,11 @@ from doc_seg import loader
 
 
 def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir: str,
-                     transcription_model_dir: str, output_dir, gpu='1'):
+                     transcription_model_dir: str, output_dir, gpu='1', plot=False):
+
+    if plot:
+        plotting_dir = os.path.join(output_dir, 'plots')
+        os.makedirs(plotting_dir, exist_ok=True)
 
     # Load cadaster image
     cadaster_original_image = imread(filename_img)
@@ -52,8 +56,8 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
     with tf.Session(config=session_config):
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
-        prediction = segmentation_model.predict(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
-        # prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
+        # prediction = segmentation_model.predict(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
+        prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
 
     contours_segmented_probs = prediction['probs'][0, :, :, 0]  # first class is contours
     text_segmented_probs = prediction['probs'][0, :, :, 1]  # second class is text
@@ -66,20 +70,23 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     watershed_parcels = watershed((255 * contours_segmented_probs).astype('int'), minimas)
 
     # Tensorflow : loading transcription model
-    transcription_session = tf.Session()
     tf.reset_default_graph()
+    transcription_session = tf.Session(config=session_config)
     loaded_model = tf.saved_model.loader.load(transcription_session, ['serve'], transcription_model_dir)
     input_dict, output_dict = _signature_def_to_tensors(loaded_model.signature_def['predictions'])
 
     approximation_epsilon = 1
     polygons_list = list()
     for marker_labels in tqdm(np.unique(watershed_parcels), total=len(np.unique(watershed_parcels))):
+
+        # PARCEL EXTRACTION
         mask_parcels = watershed_parcels == marker_labels
         _, contours, hierarchy = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_TREE,
                                                   cv2.CHAIN_APPROX_SIMPLE)
-
-        # PARCEL EXTRACTION
-        current_polygon = Polygon(contours[0])
+        if contours:
+            current_polygon = Polygon(contours[0])
+        else:
+            continue
 
         # LABEL EXTRACTION
         # Crop to have smaller image
@@ -88,7 +95,6 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
                                         cv2.boundingRect(current_polygon.approximate_coordinates(approximation_epsilon)),
                                         margin=3, return_coords=True)
         parcel_number = (255 * text_probs_crop * crop_with_margin(mask_parcels, (x, y, w, h), margin=0)).astype('uint8')
-        # parcel_number = (255 * text_segmented_probs[y:y+h, x:x+w] * mask_parcels[y:y+h, x:x+w]).astype('uint8')
 
         # Cleaning : Otsu's thresholding after Gaussian filtering and morphological opening
         _, binary_parcel_number = cv2.threshold(cv2.GaussianBlur(parcel_number, (3, 3), 0),
@@ -96,18 +102,27 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         binary_parcel_number = cv2.morphologyEx(binary_parcel_number, cv2.MORPH_OPEN,
                                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)))
 
-        # # Inverse colormap to have white background
-        # parcel_number_clean = (-(parcel_number.astype('float32')*binary_parcel_number.astype('bool')
-        #                          - 255)).astype('uint8')
+        # Find parcel number
+        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8)))
 
-        # Find parcel number and rotate it
-        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))
+        # Do not consider small elements (open)
+        opening_kernel = (10, 10)
+        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
+                                              cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
+
         _, contours_blob_list, hierarchy = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
-                                                       cv2.CHAIN_APPROX_SIMPLE)
+                                                            cv2.CHAIN_APPROX_SIMPLE)
+
+        if contours_blob_list is None:
+            continue
+
+        if plot:
+            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel.jpg'.format(current_polygon.uuid)), parcel_number_blob)
+
         number_predicted_list = list()
         scores_list = list()
         for contour_blob in contours_blob_list:
-            # Crop and keep trak of coordinates of blob
+            # Crop and keep track of coordinates of blob
             margin_crop = 2
             crop_binary_parcel_number, (x, y, w, h) = crop_with_margin(binary_parcel_number,
                                                                        cv2.boundingRect(contour_blob),
@@ -119,8 +134,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
             _, _, angle = find_orientation_blob(contours_blob_offset)
             rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(crop_binary_parcel_number.shape[:2], angle)
 
-            # Rotate horizontally
-            # Crop number
+            # Crop number and rotate horizontally
             parcel_number_crop = crop_with_margin(parcel_number, (x, y, w, h), margin=0)
             parcel_number_rotated, rotated_contours = rotate_image_and_crop(parcel_number_crop, rotation_matrix,
                                                                             (x_pad, y_pad),
@@ -129,11 +143,17 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
             # Inverse colormap to have white background
             parcel_number_clean = (-(parcel_number_rotated.astype('float32') - 255)).astype('uint8')
 
-            # TRANSCRIPTION
-            predictions = transcription_session.run(output_dict, feed_dict=***REMOVED***input_dict['images']: parcel_number_clean[:, :, None]***REMOVED***)
+            if plot:
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label.jpg'.format(current_polygon.uuid)), parcel_number_clean)
 
-            number_predicted_list.append(predictions['words'][0].decode('utf8'))
-            scores_list.append(predictions['score'][0])
+            # TRANSCRIPTION
+            try:
+                predictions = transcription_session.run(output_dict,
+                                                        feed_dict=***REMOVED***input_dict['images']: parcel_number_clean[:, :, None]***REMOVED***)
+                number_predicted_list.append(predictions['words'][0].decode('utf8'))
+                scores_list.append(predictions['score'][0])
+            except:
+                pass
 
         # Add transcription and score to Polygon object
         current_polygon.assign_transcription(number_predicted_list, scores_list)
@@ -173,4 +193,5 @@ def _signature_def_to_tensors(signature_def):
                      segmentation_model_dir=args.get('segmentation_tf_model'),
                      transcription_model_dir=args.get('transcription_tf_model'),
                      output_dir=args.get('output_dir'),
-                     gpu=args.get('gpu'))
+                     gpu=args.get('gpu'),
+                     plot=False)

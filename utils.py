@@ -18,6 +18,7 @@ class Polygon:
         self.uuid = self._generate_uuid()
         self.transcription = None
         self.score = None
+        self.georeferenced_coordinates = None
 
     def assign_transcription(self, transcription, score):
         self.transcription = transcription
@@ -29,24 +30,27 @@ class Polygon:
     def approximate_coordinates(self, epsilon=1):
         return cv2.approxPolyDP(self.coordinates, epsilon, closed=True)
 
-    def georeferenecing(self, geotransform: tuple):
-        # Georeferencing for geojson (will have no effect if no geographic metadata is found)
-        #     From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
-        #     GeoTransform[0] / * top left x
-        #     GeoTransform[1] / * w - e pixel resolution (width)
-        #     GeoTransform[2] / * rotation, 0 if image is "north up"
-        #     GeoTransform[3] / * top left y */
-        #     GeoTransform[4] / * rotation, 0 if image is "north up"
-        #     GeoTransform[5] / * n - s pixel resolution (height)
-        #     Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
-        #     Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
+    @staticmethod
+    def georeferenecing(coordinates: np.array, geotransform: tuple) -> np.array:
+    ***REMOVED***"
+        Georeferencing for geojson (will have no effect if no geographic metadata is found)
+        From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
+             GeoTransform[0] / * top left x
+             GeoTransform[1] / * w - e pixel resolution (width)
+             GeoTransform[2] / * rotation, 0 if image is "north up"
+             GeoTransform[3] / * top left y */
+             GeoTransform[4] / * rotation, 0 if image is "north up"
+             GeoTransform[5] / * n - s pixel resolution (height)
+             Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
+             Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
+    ***REMOVED***"
 
         georeferenced_coordinates = [(geotransform[0] + pt[0] * geotransform[1] + pt[1] * geotransform[2],
                                       geotransform[3] + pt[0] * geotransform[4] + pt[1] * geotransform[5])
-                                     for pt in self.coordinates[:, 0, :]]
+                                     for pt in coordinates[:, 0, :]]
         georeferenced_coordinates.append(georeferenced_coordinates[0])
 
-        self.georeferenced_coordinates = georeferenced_coordinates
+        return georeferenced_coordinates
 
 
 class GeoProjection:
@@ -58,7 +62,7 @@ class GeoProjection:
                             "name": "urn:ogc:def:crs:EPSG::3004"
                     ***REMOVED***
                     ***REMOVED***
-        elif None:
+        elif projection_name is None:
             self.crs = ***REMOVED***"type": "name",
                         "properties": ***REMOVED***
                             "name": "urn:ogc:def:crs:EPSG::3004"
@@ -119,28 +123,6 @@ def find_orientation_blob(blob_contours: np.array) -> (Tuple, np.array, float):
 
     return center, eigenvector, angle
 
-
-# def crop_with_margin(full_img, crop_coords, margin=2):
-# ***REMOVED***"
-#
-#     :param box_coords: (xmin, xmax, ymin, ymax)
-#     :param full_img:
-#     :param margin:
-#     :return:
-# ***REMOVED***"
-#
-#     xmin, xmax, ymin, ymax = crop_coords
-#     shape = full_img.shape
-#
-#     if len(shape) > 2:
-#         crop = full_img[np.maximum(0, ymin-margin):np.minimum(shape[0], ymax+margin)+1,
-#                         np.maximum(0, xmin-margin):np.minimum(shape[1], xmax+margin)+1,
-#                         :]
-#     else:
-#         crop = full_img[np.maximum(0, ymin - margin):np.minimum(shape[0], ymax + margin) + 1,
-#                         np.maximum(0, xmin - margin):np.minimum(shape[1], xmax + margin) + 1]
-#
-#     return crop
 
 def crop_with_margin(full_img: np.array, crop_coords: np.array, margin: int=2, return_coords: bool=False):
 ***REMOVED***"
@@ -216,13 +198,12 @@ def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, fi
     geotransform = ds.GetGeoTransform()
     projection = GeoProjection(GeoProjection.get_geoprojection_from_file(filename_img))
 
-    map(lambda x: x.georeferencing(geotransform), list_polygon_objects)
-
     collection_polygons = geojson.FeatureCollection(
-        [geojson.Feature(geometry=geojson.Polygon(polygon.georeferenced_coordinates),
+        [geojson.Feature(geometry=geojson.Polygon([Polygon.georeferenecing(polygon.approximate_coordinates(epsilon=2),
+                                                                           geotransform=geotransform)]),
                          properties=***REMOVED***'uuid': polygon.uuid,
                                      'transcription': polygon.transcription,
-                                     'score': polygon.score***REMOVED***) for polygon in list_polygon_objects],
+                                     'score': str(polygon.score)***REMOVED***) for polygon in list_polygon_objects],
         crs=projection.crs)
 
     # Save file
