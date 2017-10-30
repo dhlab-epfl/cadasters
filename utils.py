@@ -13,25 +13,43 @@ from math import sqrt
 
 class Polygon:
 
-    def __init__(self, coordinates: np.array):
-        self.coordinates = coordinates  # shape (N_POINTS, 1, 2)
+    def __init__(self, contours: np.array):
+    ***REMOVED***"
+        :param contours : list of contours. [ [[x1,y1], [x2,y2], ...],
+                                              [[x1.y1], [x2,y2], ...],
+                                              ... ]
+    ***REMOVED***"
+        self.contours = contours  # shape [(N_POINTS, 1, 2)]
         self.uuid = self._generate_uuid()
         self.transcription = None
         self.score = None
-        self.georeferenced_coordinates = None
+        self.georeferenced_contours = None
 
     def assign_transcription(self, transcription, score):
         self.transcription = transcription
         self.score = score
 
-    def _generate_uuid(self):
+    @staticmethod
+    def _generate_uuid():
         return str(uuid.uuid4())
 
-    def approximate_coordinates(self, epsilon=1):
-        return cv2.approxPolyDP(self.coordinates, epsilon, closed=True)
+    def approximate_coordinates(self, epsilon=1, inner=False):
+    ***REMOVED***"
+
+        :param epsilon:
+        :param inner: return alson inner contours (if there is a hole)
+        :return:
+    ***REMOVED***"
+        if inner:
+            approx_contours = list()
+            for c in self.contours:
+                approx_contours.append(cv2.approxPolyDP(c, epsilon, closed=True))
+            return approx_contours
+        else:
+            return cv2.approxPolyDP(self.contours[0], epsilon, closed=True)
 
     @staticmethod
-    def georeferenecing(coordinates: np.array, geotransform: tuple) -> np.array:
+    def georeferenecing(contours: np.array, geotransform: tuple) -> np.array:
     ***REMOVED***"
         Georeferencing for geojson (will have no effect if no geographic metadata is found)
         From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
@@ -43,14 +61,20 @@ class Polygon:
              GeoTransform[5] / * n - s pixel resolution (height)
              Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
              Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
+
+        :param contours : list of contours. [ [[x1,y1], [x2,y2], ...],
+                                              [[x1.y1], [x2,y2], ...],
+                                              ... ]
     ***REMOVED***"
+        georeferenced_contours = list()
+        for coordinates in contours:
+            georeferenced_coordinates = [(geotransform[0] + pt[0] * geotransform[1] + pt[1] * geotransform[2],
+                                          geotransform[3] + pt[0] * geotransform[4] + pt[1] * geotransform[5])
+                                         for pt in coordinates[:, 0, :]]
+            georeferenced_coordinates.append(georeferenced_coordinates[0])
+            georeferenced_contours.append(georeferenced_coordinates)
 
-        georeferenced_coordinates = [(geotransform[0] + pt[0] * geotransform[1] + pt[1] * geotransform[2],
-                                      geotransform[3] + pt[0] * geotransform[4] + pt[1] * geotransform[5])
-                                     for pt in coordinates[:, 0, :]]
-        georeferenced_coordinates.append(georeferenced_coordinates[0])
-
-        return georeferenced_coordinates
+        return georeferenced_contours
 
 
 class GeoProjection:
@@ -199,8 +223,9 @@ def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, fi
     projection = GeoProjection(GeoProjection.get_geoprojection_from_file(filename_img))
 
     collection_polygons = geojson.FeatureCollection(
-        [geojson.Feature(geometry=geojson.Polygon([Polygon.georeferenecing(polygon.approximate_coordinates(epsilon=2),
-                                                                           geotransform=geotransform)]),
+        [geojson.Feature(geometry=geojson.Polygon(Polygon.georeferenecing(polygon.approximate_coordinates(epsilon=2,
+                                                                                                          inner=True),
+                                                                          geotransform=geotransform)),
                          properties=***REMOVED***'uuid': polygon.uuid,
                                      'transcription': polygon.transcription,
                                      'score': str(polygon.score)***REMOVED***) for polygon in list_polygon_objects],

@@ -81,10 +81,10 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
         # PARCEL EXTRACTION
         mask_parcels = watershed_parcels == marker_labels
-        _, contours, hierarchy = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_TREE,
+        _, contours, hierarchy = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
                                                   cv2.CHAIN_APPROX_SIMPLE)
         if contours:
-            current_polygon = Polygon(contours[0])
+            current_polygon = Polygon(contours)
         else:
             continue
 
