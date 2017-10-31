@@ -1,33 +1,50 @@
 ***REMOVED***
 ***REMOVED***
 
-import cv2
-***REMOVED***
-import tensorflow as tf
-import sys
 import argparse
-import numpy as np
-from scipy.misc import imread, imsave
 ***REMOVED***
+import sys
+
+import cv2
+import numpy as np
+import tensorflow as tf
+from scipy.misc import imread, imsave
+from scipy.ndimage import morphology
 from skimage.morphology import h_minima, watershed, label
-from utils import Polygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
+***REMOVED***
+
+from src.utils import Polygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
     export_geojson
+from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_log_file
+
+
 try:
     import better_exceptions
 except ImportError:
     pass
 
 sys.path.insert(0, '/home/soliveir/DocumentSegmentation/')
+sys.path.insert(0, '/home/soliveir/crnn_tf/')
 #sys.path.insert(0, '/Users/soliveir/Documents/DHLAB/DocumentSegmentation/')
 from doc_seg import loader
+from crnn.src.loader import PredictionModel
 
 
 def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir: str,
-                     transcription_model_dir: str, output_dir, gpu='1', plot=False):
+                     transcription_model_dir: str, output_dir, gpu='1', plot=False, evaluation=False):
 
     if plot:
         plotting_dir = os.path.join(output_dir, 'plots')
         os.makedirs(plotting_dir, exist_ok=True)
+    if evaluation:
+        path_eval_split = os.path.split(filename_img)
+        parcels_groundtruth_filename = os.path.join(path_eval_split[0],
+                                                    '***REMOVED******REMOVED***_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0]))
+        parcel_groundtruth_matrix = get_labelled_parcels_matrix(parcels_groundtruth_filename)
+        numbers_groundtruth_filename = os.path.join(path_eval_split[0],
+                                                    '***REMOVED******REMOVED***_digits_label_gt.png'.format(path_eval_split[1].split('.')[0]))
+        numbers_groundtruth_matrix = get_labelled_digits_matrix(numbers_groundtruth_filename)
+        log_filename = os.path.join(output_dir, 'evaluation_results.json')
 
     # Load cadaster image
     cadaster_original_image = imread(filename_img)
@@ -56,7 +73,6 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
     with tf.Session(config=session_config):
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
-        # prediction = segmentation_model.predict(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
         prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
 
     contours_segmented_probs = prediction['probs'][0, :, :, 0]  # first class is contours
@@ -72,16 +88,14 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     # Tensorflow : loading transcription model
     tf.reset_default_graph()
     transcription_session = tf.Session(config=session_config)
-    loaded_model = tf.saved_model.loader.load(transcription_session, ['serve'], transcription_model_dir)
-    input_dict, output_dict = _signature_def_to_tensors(loaded_model.signature_def['predictions'])
+    loaded_model = PredictionModel(transcription_model_dir, transcription_session)
 
-    approximation_epsilon = 1
     polygons_list = list()
     for marker_labels in tqdm(np.unique(watershed_parcels), total=len(np.unique(watershed_parcels))):
 
         # PARCEL EXTRACTION
         mask_parcels = watershed_parcels == marker_labels
-        _, contours, hierarchy = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
+        _, contours, _ = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
                                                   cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             current_polygon = Polygon(contours)
@@ -90,100 +104,113 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
         # LABEL EXTRACTION
         # Crop to have smaller image
+        margin_text_label = 7
         text_probs_crop, \
-        (x, y, w, h) = crop_with_margin(text_segmented_probs,
-                                        cv2.boundingRect(current_polygon.approximate_coordinates(approximation_epsilon)),
-                                        margin=3, return_coords=True)
-        parcel_number = (255 * text_probs_crop * crop_with_margin(mask_parcels, (x, y, w, h), margin=0)).astype('uint8')
+        (x_crop_parcel, y_crop_parcel, w, h) = crop_with_margin(text_segmented_probs,
+                                        cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
+                                        margin=margin_text_label, return_coords=True)
+        parcel_number = (255 * text_probs_crop * crop_with_margin(mask_parcels,
+                                                                  (x_crop_parcel, y_crop_parcel, w, h),
+                                                                  margin=0)).astype('uint8')
 
         # Cleaning : Otsu's thresholding after Gaussian filtering and morphological opening
+        # TODO : Maybe do the binarization for all image in one time
         _, binary_parcel_number = cv2.threshold(cv2.GaussianBlur(parcel_number, (3, 3), 0),
                                                 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         binary_parcel_number = cv2.morphologyEx(binary_parcel_number, cv2.MORPH_OPEN,
                                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)))
 
-        # Find parcel number
+        # Find parcel number but do not consider small elements (open)
         parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8)))
-
-        # Do not consider small elements (open)
         opening_kernel = (10, 10)
         parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
                                               cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
-
-        _, contours_blob_list, hierarchy = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
-                                                            cv2.CHAIN_APPROX_SIMPLE)
+        _, contours_blob_list, _ = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
+                                                    cv2.CHAIN_APPROX_SIMPLE)
 
         if contours_blob_list is None:
             continue
 
         if plot:
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel.jpg'.format(current_polygon.uuid)), parcel_number_blob)
+            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_number_binarization.jpg'.format(current_polygon.uuid)), binary_parcel_number)
+            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel_blob.jpg'.format(current_polygon.uuid)), parcel_number_blob)
+            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_text_probs.jpg'.format(current_polygon.uuid)), parcel_number)
 
         number_predicted_list = list()
         scores_list = list()
-        for contour_blob in contours_blob_list:
+        label_contour_list = list()
+        for i, contour_blob in enumerate(contours_blob_list):
             # Crop and keep track of coordinates of blob
             margin_crop = 2
-            crop_binary_parcel_number, (x, y, w, h) = crop_with_margin(binary_parcel_number,
+            crop_binary_parcel_number, (x_crop_label, y_crop_label, w, h) = crop_with_margin(binary_parcel_number,
                                                                        cv2.boundingRect(contour_blob),
                                                                        margin=margin_crop,
                                                                        return_coords=True)
-            contours_blob_offset = contour_blob[:, 0, :] - [x, y]
+            contours_blob_offset = contour_blob[:, 0, :] - [x_crop_label, y_crop_label]
 
             # Compute rotation matrix and padding
             _, _, angle = find_orientation_blob(contours_blob_offset)
             rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(crop_binary_parcel_number.shape[:2], angle)
 
             # Crop number and rotate horizontally
-            parcel_number_crop = crop_with_margin(parcel_number, (x, y, w, h), margin=0)
+            parcel_number_crop = crop_with_margin(parcel_number, (x_crop_label, y_crop_label, w, h), margin=0)
             parcel_number_rotated, rotated_contours = rotate_image_and_crop(parcel_number_crop, rotation_matrix,
                                                                             (x_pad, y_pad),
                                                                             contours_blob_offset, border_value=0)
 
+            parcel_number_clean = morphology.grey_erosion(parcel_number_rotated, (2, 2))
             # Inverse colormap to have white background
-            parcel_number_clean = (-(parcel_number_rotated.astype('float32') - 255)).astype('uint8')
+            parcel_number_clean = (-(parcel_number_clean.astype('float32') - 255)).astype('uint8')
 
             if plot:
-                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label.jpg'.format(current_polygon.uuid)), parcel_number_clean)
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_crop***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+                       parcel_number_crop)
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_rotated***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+                       parcel_number_clean)
 
             # TRANSCRIPTION
             try:
-                predictions = transcription_session.run(output_dict,
-                                                        feed_dict=***REMOVED***input_dict['images']: parcel_number_clean[:, :, None]***REMOVED***)
+                predictions = loaded_model.predict(parcel_number_clean[:, :, None])
                 number_predicted_list.append(predictions['words'][0].decode('utf8'))
                 scores_list.append(predictions['score'][0])
+                label_contour_list.append((contour_blob[:, 0, :] + [x_crop_parcel, y_crop_parcel])[:, None, :])
             except:
                 pass
 
         # Add transcription and score to Polygon object
-        current_polygon.assign_transcription(number_predicted_list, scores_list)
+        current_polygon.assign_transcription(number_predicted_list, scores_list, label_contour_list)
 
         polygons_list.append(current_polygon)
-
-    transcription_session.close()
 
     # Export GEOJSON file
     export_filename = os.path.join(output_dir, 'parcels.geojson')
     export_geojson(polygons_list, export_filename, filename_img)
 
+    # EVALUATION
+    if evaluation:
+        print('-- EVALUATION --')
+        result_parcel_localisation, \
+        result_label_localisation, \
+        result_transcription = evaluate(polygons_list, parcel_groundtruth_matrix, numbers_groundtruth_matrix,
+                                        threshold_parcels=0.8, threshold_labels=0.8)
+
+        evaluation_log_file(log_filename, results_parcels=result_parcel_localisation,
+                            result_numbers=(result_label_localisation, result_transcription))
+
     print('Cadaster image processed!')
-
-
-def _signature_def_to_tensors(signature_def):
-    g = tf.get_default_graph()
-    return ***REMOVED***k: g.get_tensor_by_name(v.name) for k, v in signature_def.inputs.items()***REMOVED***, \
-           ***REMOVED***k: g.get_tensor_by_name(v.name) for k, v in signature_def.outputs.items()***REMOVED***
 
 
 ***REMOVED***
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
     parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str)
     parser.add_argument('-out', '--output_dir', help='Output directory for results and plots.', type=str)
-    parser.add_argument('-sm', '--segmentation_tf_model', type= str, help='Path of the tensorflow segmentation model '
+    parser.add_argument('-sm', '--segmentation_tf_model', type=str, help='Path of the tensorflow segmentation model '
                                                                           'for pixel-wise segmentation')
     parser.add_argument('-tm', '--transcription_tf_model', type=str, help='Path of the tensorflow segmentation model '
                                                                           'for digit transcription')
     parser.add_argument('-g', '--gpu', type=str, help='GPU device, ('' For CPU)', default='')
+    parser.add_argument('-d', '--debug', type=bool, help='Plot intermediate resutls to facilitate debug', default=False)
+    parser.add_argument('-ev', '--evaluate', type=bool, help='Evaluation of the results', default=False)
     args = vars(parser.parse_args())
 
     os.makedirs(args.get('output_dir'), exist_ok=True)
@@ -194,4 +221,5 @@ def _signature_def_to_tensors(signature_def):
                      transcription_model_dir=args.get('transcription_tf_model'),
                      output_dir=args.get('output_dir'),
                      gpu=args.get('gpu'),
-                     plot=False)
+                     plot=args.get('debug'),
+                     evaluation=bool(args.get('evaluate')))

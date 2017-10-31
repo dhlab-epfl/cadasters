@@ -24,10 +24,12 @@ class Polygon:
         self.transcription = None
         self.score = None
         self.georeferenced_contours = None
+        self._label_contours = None
 
-    def assign_transcription(self, transcription, score):
+    def assign_transcription(self, transcription, score, label_contour):
         self.transcription = transcription
         self.score = score
+        self._label_contours = label_contour
 
     @staticmethod
     def _generate_uuid():
@@ -75,6 +77,10 @@ class Polygon:
             georeferenced_contours.append(georeferenced_coordinates)
 
         return georeferenced_contours
+
+    @property
+    def label_contours(self):
+        return self._label_contours
 
 
 class GeoProjection:
@@ -148,7 +154,7 @@ def find_orientation_blob(blob_contours: np.array) -> (Tuple, np.array, float):
     return center, eigenvector, angle
 
 
-def crop_with_margin(full_img: np.array, crop_coords: np.array, margin: int=2, return_coords: bool=False):
+def crop_with_margin(full_img: np.array, crop_coords: np.array, margin: int=0, return_coords: bool=False):
 ***REMOVED***"
 
     :param box_coords: (x, y, w, h)
