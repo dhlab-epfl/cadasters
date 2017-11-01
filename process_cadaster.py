@@ -34,7 +34,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
                      transcription_model_dir: str, output_dir, gpu='1', plot=False, evaluation=False):
 
     if plot:
-        plotting_dir = os.path.join(output_dir, 'plots')
+        plotting_dir = os.path.join(output_dir, 'plots_***REMOVED******REMOVED***'.format(os.path.split(filename_img)[1].split('.')[0]))
         os.makedirs(plotting_dir, exist_ok=True)
     if evaluation:
         path_eval_split = os.path.split(filename_img)
@@ -183,7 +183,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         polygons_list.append(current_polygon)
 
     # Export GEOJSON file
-    export_filename = os.path.join(output_dir, 'parcels.geojson')
+    export_filename = os.path.join(output_dir, 'parcels_***REMOVED******REMOVED***.geojson'.format(os.path.split(filename_img)[1].split('.')[0]))
     export_geojson(polygons_list, export_filename, filename_img)
 
     # EVALUATION
