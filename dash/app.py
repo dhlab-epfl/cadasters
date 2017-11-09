@@ -13,14 +13,44 @@ app = dash.Dash()
 
 data_files = glob('./filt/*.geojson')
 
+data_list = list()
+raw_data_list = list()
+for file in data_files:
+    with open(file, 'r') as f:
+        raw_data_list.append(json.load(f))
+    # print('Nb points: ***REMOVED******REMOVED***'.format(sum([len(f['geometry']['coordinates'][0]) for f in raw_data_list[-1]['features']])))
 
-with open('filt/parcelsFg5_filt.geojson', 'r') as f:
-    raw_data = json.load(f)
-print('Nb points: ***REMOVED******REMOVED***'.format(sum([len(f['geometry']['coordinates'][0]) for f in raw_data['features']])))
+    data_list.append(gpd.read_file(file))
 
-data = gpd.read_file('filt/parcelsFg5_filt.geojson')
-centroids_lon = data.centroid.x
-centroids_lat = data.centroid.y
+
+data_graph = [
+    dict(
+        type='scattermapbox',
+        lon=data.centroid.x,
+        lat=data.centroid.y,
+        text=["***REMOVED******REMOVED***<br>***REMOVED******REMOVED***".format(s, t) for s, t in zip(data.score, data.transcription)],
+        customdata=data.transcription,
+        hoverinfo='text',
+        marker=dict(
+            size=4,
+            opacity=0.6,
+            color=list('rgb(***REMOVED******REMOVED***,***REMOVED******REMOVED***,***REMOVED******REMOVED***)'.format(i, i, i) for i in range(len(data)))
+        )
+    )
+    for data in data_list
+]
+
+layers = [
+    ***REMOVED***
+        "below": "water",
+        "color": "rgb(***REMOVED******REMOVED***, ***REMOVED******REMOVED***, ***REMOVED******REMOVED***)".format(*(255*np.random.random(3))),
+        "opacity": 0.7,
+        "sourcetype": "geojson",
+        "type": "fill",
+        "source": raw_data,
+***REMOVED***
+    for raw_data in raw_data_list
+]
 
 
 app.layout = html.Div(children=[
@@ -36,61 +66,27 @@ app.layout = html.Div(children=[
     dcc.Graph(
         id='example-graph',
         figure=***REMOVED***
-        'data':[
-        dict(
-            type='scattermapbox',
-            lon=centroids_lon,
-            lat=centroids_lat,
-            text=["***REMOVED******REMOVED***<br>***REMOVED******REMOVED***".format(s, t) for s, t in zip(data.score, data.transcription)],
-            customdata=data.transcription,
-            hoverinfo='text',
-
-            marker=dict(
-                size=4,
-                opacity=0.6,
-                color=list('rgb(***REMOVED******REMOVED***,***REMOVED******REMOVED***,***REMOVED******REMOVED***)'.format(i,i,i) for i in range(len(data)))
-            )
-        )
-     ***REMOVED***,
-        'layout': ***REMOVED***
-          "autosize": True, 
-          "font": ***REMOVED***"family": "Balto"***REMOVED***, 
-          "height": 800, 
-          #"width": 1200,
-          "hovermode": "closest", 
-          "mapbox": ***REMOVED***
-            # "accesstoken": "pk.eyJ1IjoiZW1wZXQiLCJhIjoiY2l4OXdlYXh4MDAzNDJvbWdwcGdlemhkdyJ9.hPC39hOpk1pO09UHoEGNIw", 
-            "accesstoken": "pk.eyJ1Ijoic29saXZyIiwiYSI6ImNqOW9keGxlaTR2Y3gzMHQ0NTZxbzQ3dDIifQ.VTeBL8GaxZFPP048VsTjfA",
-            "style": "mapbox://styles/solivr/cj9pnyf895hu72sova6afy3pa",
-            "bearing": 0, 
-            "center": ***REMOVED***
-              "lat": 45.436, 
-              "lon": 12.330
-          ***REMOVED***
-            "zoom": 13,
-            "layers": [
-              ***REMOVED***
-                # "below": "water", 
-                "color": "rgb(***REMOVED******REMOVED***, ***REMOVED******REMOVED***, ***REMOVED******REMOVED***)".format(*(255*np.random.random(3))), 
-                "opacity": 0.7, 
-                "sourcetype": "geojson", 
-                "type": "fill",
-                "source": raw_data, 
-                # One can change the colors by making different layers + one-color/layer, but quickly laggy with many features
-                #"source": feature, 
-          ***REMOVED*** #for feature in raw_data['features']
-         ***REMOVED***,
-            # "sources": 
-            #     ***REMOVED***
-            #     "mapbox-satellite": 
-            #         ***REMOVED***
-            #         "type": "raster",
-            #         "url": "mapbox://styles/solivr/cj9ph30lq5bra2rqxsxa2ald3"
-            #     ***REMOVED***
-            # ***REMOVED***
+            'data': data_graph,
+            'layout': ***REMOVED***
+                "autosize": True,
+                "font": ***REMOVED***"family": "Balto"***REMOVED***,
+                "height": 800,
+                # "width": 1200,
+                "hovermode": "closest",
+                "mapbox": ***REMOVED***
+                    # "accesstoken": "pk.eyJ1IjoiZW1wZXQiLCJhIjoiY2l4OXdlYXh4MDAzNDJvbWdwcGdlemhkdyJ9.hPC39hOpk1pO09UHoEGNIw",
+                    "accesstoken": "pk.eyJ1Ijoic29saXZyIiwiYSI6ImNqOW9keGxlaTR2Y3gzMHQ0NTZxbzQ3dDIifQ.VTeBL8GaxZFPP048VsTjfA",
+                    "style": "mapbox://styles/solivr/cj9pnyf895hu72sova6afy3pa",
+                    "bearing": 0,
+                    "center": ***REMOVED***
+                        "lat": 45.436,
+                        "lon": 12.330
+                  ***REMOVED***
+                    "zoom": 13,
+                    "layers": layers,
+            ***REMOVED***
         ***REMOVED***
-    ***REMOVED***
-***REMOVED***)
+    ***REMOVED***)
 ])
 
 
@@ -101,6 +97,7 @@ app.layout = html.Div(children=[
 def update_output_div(input_value):
     return 'Hovered data "***REMOVED******REMOVED***"'.format(input_value)
 
+
 @app.callback(
     Output(component_id='my-div-2', component_property='children'),
     [Input(component_id='example-graph', component_property='clickData')]
@@ -109,6 +106,6 @@ def update_output_div(input_value):
     return 'Clicked data "***REMOVED******REMOVED***"'.format(input_value)
 
 
-
 ***REMOVED***
-    app.run_server(debug=True)
+    app.run_server(debug=True,
+                   port=8051)
