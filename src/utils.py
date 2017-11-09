@@ -92,6 +92,12 @@ class GeoProjection:
                             "name": "urn:ogc:def:crs:EPSG::3004"
                     ***REMOVED***
                     ***REMOVED***
+        elif projection_name == 'WGS84':
+            self.crs = ***REMOVED***"type": "name",
+                        "properties": ***REMOVED***
+                            "name": "urn:ogc:def:crs:EPSG::4326"
+                    ***REMOVED***
+                    ***REMOVED***
         elif projection_name is None:
             self.crs = ***REMOVED***"type": "name",
                         "properties": ***REMOVED***
@@ -233,8 +239,9 @@ def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, fi
                                                                                                           inner=True),
                                                                           geotransform=geotransform)),
                          properties=***REMOVED***'uuid': polygon.uuid,
-                                     'transcription': polygon.transcription,
+                                     'transcription': str(polygon.transcription),
                                      'score': str(polygon.score)***REMOVED***) for polygon in list_polygon_objects],
+                                     # 'score': [str(score) for score in polygon.score]***REMOVED***) for polygon in list_polygon_objects],
         crs=projection.crs)
 
     # Save file
