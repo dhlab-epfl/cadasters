@@ -188,15 +188,18 @@ def evaluation_number_transcription(groundtruth_numbers_image: np.array, selecte
     correct_label = str(correct_label)
     if correct_label == '0':
         result = False
-        levenshtein_distance = len(correct_label)
+        levenshtein_distance = 0 #len(correct_label)
+        total_chars = 0
     elif correct_label == transcription:
         result = True
         levenshtein_distance = 0
+        total_chars = len(str(correct_label))
     else:
         result = False
         levenshtein_distance = minimum_edit_distance(correct_label, transcription)
+        total_chars = len(str(correct_label))
 
-    return result, levenshtein_distance, len(str(correct_label))
+    return result, levenshtein_distance, total_chars
 
 
 def evaluation_number_localization(groundtruth_numbers_image: np.array, selected_number_mask: np.array,

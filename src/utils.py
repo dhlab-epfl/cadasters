@@ -135,29 +135,33 @@ def export_geojson(list_polygons: List[Polygon], export_filename: str, crs) -> N
         geojson.dump(collectionPolygons, outfile, sort_keys=True)
 
 
-def find_orientation_blob(blob_contours: np.array) -> (Tuple, np.array, float):
+def find_orientation_blob(blob_contour: np.array) -> (Tuple, np.array, float):
 ***REMOVED***"
     Uses PCA to find the orientation of blob
-    :param blob_contours: contours of blob
+    :param blob_contour: contour of blob
     :return: center point, eignevectors, angle of orientation (in degrees)
 ***REMOVED***"
 
-    # Find orientation with PCA
-    blob_contours = blob_contours.reshape(blob_contours.shape[0], 2)  # must be of size nx2
-    mean, eigenvector = cv2.PCACompute(np.float32(blob_contours), mean=np.array([]))
+    # # Find orientation with PCA
+    # blob_contours = blob_contours.reshape(blob_contours.shape[0], 2)  # must be of size nx2
+    # mean, eigenvector = cv2.PCACompute(np.float32(blob_contours), mean=np.array([]))
+    #
+    # center = mean[0]
+    # diagonal = eigenvector[0]
+    # angle = np.arctan2(diagonal[1], diagonal[0])  # orientation in radians
+    # angle *= (180/np.pi)
+    #
+    # # TODO : This needs to be checked...!
+    # if diagonal[0] > 0:  # 1st and 4th cadran
+    #     angle = angle
+    # elif diagonal[0] < 0:  # 2nd and 3rd cadran
+    #     angle = 90 - angle
+    #
+    # return center, eigenvector, angle
 
-    center = mean[0]
-    diagonal = eigenvector[0]
-    angle = np.arctan2(diagonal[1], diagonal[0])  # orientation in radians
-    angle *= (180/np.pi)
+    center, diags, angle = cv2.fitEllipse(blob_contour)
 
-    # TODO : This needs to be checked...!
-    if diagonal[0] > 0:  # 1st and 4th cadran
-        angle = angle
-    elif diagonal[0] < 0:  # 2nd and 3rd cadran
-        angle = 90 - angle
-
-    return center, eigenvector, angle
+    return center, diags, angle
 
 
 def crop_with_margin(full_img: np.array, crop_coords: np.array, margin: int=0, return_coords: bool=False):
@@ -222,12 +226,15 @@ def rotate_image_and_crop(image: np.array, rotation_matrix: np.array, padding_di
     # Crop
     contour_blob = contour_blob + [x_pad, y_pad]
     rotated_contours = cv2.transform(contour_blob[None], rotation_matrix)
-    rotated_image_cropped = crop_with_margin(rotated_image, cv2.boundingRect(rotated_contours), margin=2)
+    rotated_image_cropped, (x_crop, y_crop, w, h) = crop_with_margin(rotated_image, cv2.boundingRect(rotated_contours),
+                                                                     margin=2, return_coords=True)
+    rotated_contours = rotated_contours - [x_crop, y_crop]
 
     return rotated_image_cropped, rotated_contours
 
 
 def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, filename_img: str):
+    # TODO : Already do some postprocessing like removing polygons with 3 or less coordinates, empty transcriptions, ...
 
     # Geographic info
     ds = gdal.Open(filename_img)

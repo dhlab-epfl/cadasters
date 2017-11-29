@@ -17,7 +17,6 @@ from src.utils import Polygon, crop_with_margin, find_orientation_blob, rotate_i
     export_geojson
 from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_log_file
 
-
 try:
     import better_exceptions
 except ImportError:
@@ -39,15 +38,17 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     if evaluation:
         path_eval_split = os.path.split(filename_img)
         parcels_groundtruth_filename = os.path.join(path_eval_split[0],
-                                                    '***REMOVED******REMOVED***_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0]))
+                                                    #'***REMOVED******REMOVED***_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0]))
+                                                    '***REMOVED******REMOVED***_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0]))
         parcel_groundtruth_matrix = get_labelled_parcels_matrix(parcels_groundtruth_filename)
         numbers_groundtruth_filename = os.path.join(path_eval_split[0],
                                                     '***REMOVED******REMOVED***_digits_label_gt.png'.format(path_eval_split[1].split('.')[0]))
         numbers_groundtruth_matrix = get_labelled_digits_matrix(numbers_groundtruth_filename)
-        log_filename = os.path.join(output_dir, 'evaluation_results.json')
+        log_filename = os.path.join(output_dir, '***REMOVED******REMOVED***_evaluation_results.json'.format(os.path.split(filename_img)[1].split('.')[0]))
 
     # Load cadaster image
     cadaster_original_image = imread(filename_img)
+    cadaster_grayscale = cv2.cvtColor(cadaster_original_image, cv2.COLOR_RGB2GRAY)
     cadaster_cv2_image = cv2.imread(filename_img)
 
     try:
@@ -60,7 +61,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     print('-- FILTERING --')
     if denoising:
         k = 5
-        cadaster_image = cv2.fastNlMeansDenoisingColored(cadaster_original_image, h=k, hColor=k)
+        cadaster_image = cv2.fastNlMeansDenoisingColored(cadaster_original_image, h=k, hColor=k) # TODO : should use cadaster_cv2_image
     else:
         cadaster_image = cadaster_original_image.copy()
 
@@ -75,8 +76,14 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
         prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
 
-    contours_segmented_probs = prediction['probs'][0, :, :, 0]  # first class is contours
-    text_segmented_probs = prediction['probs'][0, :, :, 1]  # second class is text
+    # TODO : Try to use hysteresis thresholding
+    contours_segmented_probs = prediction['probs'][0, :, :, 1]  # first class is contours
+    text_segmented_probs = prediction['probs'][0, :, :, 0]  # second class is text
+
+    if plot:
+        imsave(os.path.join(plotting_dir, '__contours.jpg'), contours_segmented_probs)
+        imsave(os.path.join(plotting_dir, '__text.jpg'), text_segmented_probs)
+
 
     #
     # WATERSHED
@@ -96,34 +103,38 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         # PARCEL EXTRACTION
         mask_parcels = watershed_parcels == marker_labels
         _, contours, _ = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
-                                                  cv2.CHAIN_APPROX_SIMPLE)
+                                          cv2.CHAIN_APPROX_SIMPLE)
         if contours:
             current_polygon = Polygon(contours)
         else:
             continue
 
+        # Binarize probs with Otsu's threshold
+        _, binary_text_segmented = cv2.threshold(cv2.GaussianBlur((text_segmented_probs * 255).astype('uint8'),
+                                                                  (3, 3), 0),
+                                                 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        binary_text_segmented = cv2.morphologyEx(binary_text_segmented, cv2.MORPH_OPEN,
+                                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
         # LABEL EXTRACTION
         # Crop to have smaller image
         margin_text_label = 7
-        text_probs_crop, \
-        (x_crop_parcel, y_crop_parcel, w, h) = crop_with_margin(text_segmented_probs,
-                                        cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
-                                        margin=margin_text_label, return_coords=True)
-        parcel_number = (255 * text_probs_crop * crop_with_margin(mask_parcels,
-                                                                  (x_crop_parcel, y_crop_parcel, w, h),
-                                                                  margin=0)).astype('uint8')
+        text_binary_crop, coordinates_crop_parcel = crop_with_margin(binary_text_segmented,                             # Size 1
+                                                   cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
+                                                   margin=margin_text_label, return_coords=True)
+        (x_crop_parcel, y_crop_parcel, w_crop_parcel, h_crop_parcel) = coordinates_crop_parcel
+        binary_parcel_number = (255 * text_binary_crop * crop_with_margin(mask_parcels, coordinates_crop_parcel,
+                                                                          margin=0)).astype('uint8')
+        parcel_number = (255 * crop_with_margin(text_segmented_probs, coordinates_crop_parcel, margin=0)
+                         * crop_with_margin(mask_parcels, coordinates_crop_parcel, margin=0)).astype('uint8')
 
-        # Cleaning : Otsu's thresholding after Gaussian filtering and morphological opening
-        # TODO : Maybe do the binarization for all image in one time
-        _, binary_parcel_number = cv2.threshold(cv2.GaussianBlur(parcel_number, (3, 3), 0),
-                                                0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # Cleaning : Morphological opening
         binary_parcel_number = cv2.morphologyEx(binary_parcel_number, cv2.MORPH_OPEN,
-                                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2, 2)))
+                                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
 
         # Find parcel number but do not consider small elements (open)
-        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (8, 8)))
-        opening_kernel = (10, 10)
-        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
+        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))     # Size 1
+        opening_kernel = (9, 9)
+        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,                                       # Size 1
                                               cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
         _, contours_blob_list, _ = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
                                                     cv2.CHAIN_APPROX_SIMPLE)
@@ -140,37 +151,58 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         scores_list = list()
         label_contour_list = list()
         for i, contour_blob in enumerate(contours_blob_list):
+
+            if len(contour_blob) < 5:  # There should be a least 5 points to fit the ellipse
+                continue
+                print('len_blob: ', len(contour_blob))
             # Crop and keep track of coordinates of blob
-            margin_crop = 2
-            crop_binary_parcel_number, (x_crop_label, y_crop_label, w, h) = crop_with_margin(binary_parcel_number,
-                                                                       cv2.boundingRect(contour_blob),
-                                                                       margin=margin_crop,
-                                                                       return_coords=True)
-            contours_blob_offset = contour_blob[:, 0, :] - [x_crop_label, y_crop_label]
+            # margin_crop = 2
+            # crop_binary_parcel_number, (x_crop_label, y_crop_label, w, h) = crop_with_margin(binary_parcel_number,      # Size 2
+            #                                                            cv2.boundingRect(contour_blob),
+            #                                                            margin=margin_crop,
+            #                                                            return_coords=True)
+            # contours_blob_offset = contour_blob[:, 0, :] - [x_crop_label, y_crop_label]                                 # Size 2
 
             # Compute rotation matrix and padding
-            _, _, angle = find_orientation_blob(contours_blob_offset)
-            rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(crop_binary_parcel_number.shape[:2], angle)
+            _, _, angle = find_orientation_blob(contour_blob)
+            rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(binary_parcel_number.shape[:2], angle - 90)
 
-            # Crop number and rotate horizontally
-            parcel_number_crop = crop_with_margin(parcel_number, (x_crop_label, y_crop_label, w, h), margin=0)
-            parcel_number_rotated, rotated_contours = rotate_image_and_crop(parcel_number_crop, rotation_matrix,
-                                                                            (x_pad, y_pad),
-                                                                            contours_blob_offset, border_value=0)
+            # # Crop number and rotate horizontally
+            # parcel_number_crop = crop_with_margin(parcel_number, (x_crop_label, y_crop_label, w, h), margin=0)          # Size 2
+            # parcel_number_rotated, rotated_contours = rotate_image_and_crop(parcel_number_crop, rotation_matrix,        # Size 3
+            #                                                                 (x_pad, y_pad),
+            #                                                                 contours_blob_offset, border_value=0)
 
-            parcel_number_clean = morphology.grey_erosion(parcel_number_rotated, (2, 2))
-            # Inverse colormap to have white background
-            parcel_number_clean = (-(parcel_number_clean.astype('float32') - 255)).astype('uint8')
+            # parcel_number_clean = morphology.grey_erosion(parcel_number_rotated, (2, 2))
+            # # Inverse colormap to have white background
+            # parcel_number_clean = (-(parcel_number_clean.astype('float32') - 255)).astype('uint8')
+
+            # Crop on grayscale image
+            image_parcel_number = cadaster_grayscale[y_crop_parcel:y_crop_parcel + h_crop_parcel,
+                                  x_crop_parcel:x_crop_parcel + w_crop_parcel]
+
+            image_parcel_number_rotated, rotated_contours = rotate_image_and_crop(image_parcel_number, rotation_matrix,
+                                                                                  (x_pad, y_pad),
+                                                                                  contour_blob[:, 0, :],
+                                                                                  border_value=128)
+
+            x_box, y_box, w_box, h_box = cv2.boundingRect(rotated_contours)
+            margin_box = 0
+            grayscale_number_crop = image_parcel_number_rotated[y_box + margin_box:y_box + h_box - margin_box,
+                                    x_box + margin_box:x_box + w_box - margin_box]
+
+            if grayscale_number_crop.size < 100:
+                continue
 
             if plot:
                 imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_crop***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
-                       parcel_number_crop)
+                       image_parcel_number)
                 imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_rotated***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
-                       parcel_number_clean)
+                       grayscale_number_crop)
 
             # TRANSCRIPTION
             try:
-                predictions = loaded_model.predict(parcel_number_clean[:, :, None])
+                predictions = loaded_model.predict(grayscale_number_crop[:, :, None])
                 number_predicted_list.append(predictions['words'][0].decode('utf8'))
                 scores_list.append(predictions['score'][0])
                 label_contour_list.append((contour_blob[:, 0, :] + [x_crop_parcel, y_crop_parcel])[:, None, :])
@@ -209,7 +241,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     parser.add_argument('-tm', '--transcription_tf_model', type=str, help='Path of the tensorflow segmentation model '
                                                                           'for digit transcription')
     parser.add_argument('-g', '--gpu', type=str, help='GPU device, ('' For CPU)', default='')
-    parser.add_argument('-d', '--debug', type=bool, help='Plot intermediate resutls to facilitate debug', default=False)
+    parser.add_argument('-d', '--debug', type=bool, help='Plot intermediate resutls to facilitate debug', default=True)
     parser.add_argument('-ev', '--evaluate', type=bool, help='Evaluation of the results', default=False)
     args = vars(parser.parse_args())
 
