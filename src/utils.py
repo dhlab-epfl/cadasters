@@ -9,9 +9,10 @@ import re
 from typing import List, Tuple
 import geojson
 from math import sqrt
+from shapely.geometry import Polygon
 
 
-class Polygon:
+class MyPolygon:
 
     def __init__(self, contours: np.array):
     ***REMOVED***"
@@ -19,27 +20,36 @@ class Polygon:
                                               [[x1.y1], [x2,y2], ...],
                                               ... ]
     ***REMOVED***"
+        # TODO shange contours to shapely Polygon object
         self.contours = contours  # shape [(N_POINTS, 1, 2)]
         self.uuid = self._generate_uuid()
         self.transcription = None
         self.score = None
         self.georeferenced_contours = None
         self._label_contours = None
+        self.best_transcription = None
 
     def assign_transcription(self, transcription, score, label_contour):
         self.transcription = transcription
         self.score = score
         self._label_contours = label_contour
+        self.best_transcription = self.find_best_transcription()
 
     @staticmethod
     def _generate_uuid():
         return str(uuid.uuid4())
 
+    def find_best_transcription(self):
+        if self.score:
+            return self.transcription[np.argmax(self.score)]
+        else:
+            return ''
+
     def approximate_coordinates(self, epsilon=1, inner=False):
     ***REMOVED***"
 
         :param epsilon:
-        :param inner: return alson inner contours (if there is a hole)
+        :param inner: return also inner contours (if there is a hole)
         :return:
     ***REMOVED***"
         if inner:
@@ -124,7 +134,7 @@ class GeoProjection:
         return crs
 
 
-def export_geojson(list_polygons: List[Polygon], export_filename: str, crs) -> None:
+def export_geojson(list_polygons: List[MyPolygon], export_filename: str, crs) -> None:
 
     # Object to save
     collectionPolygons = geojson.FeatureCollection([poly for poly in list_polygons], crs=crs)
@@ -233,7 +243,7 @@ def rotate_image_and_crop(image: np.array, rotation_matrix: np.array, padding_di
     return rotated_image_cropped, rotated_contours
 
 
-def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, filename_img: str):
+def export_geojson(list_polygon_objects: List[MyPolygon], export_filename: str, filename_img: str):
     # TODO : Already do some postprocessing like removing polygons with 3 or less coordinates, empty transcriptions, ...
 
     # Geographic info
@@ -242,12 +252,14 @@ def export_geojson(list_polygon_objects: List[Polygon], export_filename: str, fi
     projection = GeoProjection(GeoProjection.get_geoprojection_from_file(filename_img))
 
     collection_polygons = geojson.FeatureCollection(
-        [geojson.Feature(geometry=geojson.Polygon(Polygon.georeferenecing(polygon.approximate_coordinates(epsilon=2,
-                                                                                                          inner=True),
-                                                                          geotransform=geotransform)),
+        [geojson.Feature(geometry=geojson.Polygon(MyPolygon.georeferenecing(polygon.approximate_coordinates(epsilon=2,
+                                                                                                            inner=True),
+                                                                            geotransform=geotransform)),
                          properties=***REMOVED***'uuid': polygon.uuid,
                                      'transcription': str(polygon.transcription),
-                                     'score': str(polygon.score)***REMOVED***) for polygon in list_polygon_objects],
+                                     'score': str(polygon.score),
+                                     'best_transcription' : str(polygon.best_transcription)
+                                 ***REMOVED***) for polygon in list_polygon_objects],
                                      # 'score': [str(score) for score in polygon.score]***REMOVED***) for polygon in list_polygon_objects],
         crs=projection.crs)
 

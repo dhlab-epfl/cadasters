@@ -3,30 +3,25 @@
 
 import argparse
 ***REMOVED***
-import sys
-
 import cv2
 import numpy as np
 import tensorflow as tf
 from scipy.misc import imread, imsave
-from scipy.ndimage import morphology
 from skimage.morphology import h_minima, watershed, label
 ***REMOVED***
+import pickle
 
-from src.utils import Polygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
+from src.utils import MyPolygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
     export_geojson
-from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_log_file
+from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_json_file
 
 try:
     import better_exceptions
 except ImportError:
     pass
 
-sys.path.insert(0, '/home/soliveir/DocumentSegmentation/')
-sys.path.insert(0, '/home/soliveir/crnn_tf/')
-#sys.path.insert(0, '/Users/soliveir/Documents/DHLAB/DocumentSegmentation/')
-from doc_seg import loader
-from crnn.src.loader import PredictionModel
+from dh_segment import loader
+from tf_crnn.loader import PredictionModel
 
 
 def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir: str,
@@ -44,13 +39,12 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         numbers_groundtruth_filename = os.path.join(path_eval_split[0],
                                                     '***REMOVED******REMOVED***_digits_label_gt.png'.format(path_eval_split[1].split('.')[0]))
         numbers_groundtruth_matrix = get_labelled_digits_matrix(numbers_groundtruth_filename)
+        pickle_filename = os.path.join(output_dir, '***REMOVED******REMOVED***_polygons_data.pkl'.format(os.path.split(filename_img)[1].split('.')[0]))
         log_filename = os.path.join(output_dir, '***REMOVED******REMOVED***_evaluation_results.json'.format(os.path.split(filename_img)[1].split('.')[0]))
 
     # Load cadaster image
     cadaster_original_image = imread(filename_img)
     cadaster_grayscale = cv2.cvtColor(cadaster_original_image, cv2.COLOR_RGB2GRAY)
-    cadaster_cv2_image = cv2.imread(filename_img)
-
     try:
         cadaster_original_image.shape
     except AttributeError:
@@ -61,7 +55,9 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     print('-- FILTERING --')
     if denoising:
         k = 5
-        cadaster_image = cv2.fastNlMeansDenoisingColored(cadaster_original_image, h=k, hColor=k) # TODO : should use cadaster_cv2_image
+        cadaster_image = cv2.cvtColor(cv2.fastNlMeansDenoisingColored(cv2.cvtColor(cadaster_original_image,
+                                                                                   cv2.COLOR_RGB2BGR),
+                                                                      h=k, hColor=k), cv2.COLOR_BGR2RGB)
     else:
         cadaster_image = cadaster_original_image.copy()
 
@@ -74,7 +70,8 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
     with tf.Session(config=session_config):
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
-        prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
+        # prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
+        prediction = segmentation_model.predict_with_tiles(filename_img)  # returns ***REMOVED***'probs', 'labels'***REMOVED***
 
     # TODO : Try to use hysteresis thresholding
     contours_segmented_probs = prediction['probs'][0, :, :, 1]  # first class is contours
@@ -88,7 +85,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     #
     # WATERSHED
     print('-- WATERSHED --')
-    h_level = 0.05
+    h_level = 0.1
     minimas = label(h_minima(contours_segmented_probs, h_level))
     watershed_parcels = watershed((255 * contours_segmented_probs).astype('int'), minimas)
 
@@ -105,7 +102,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         _, contours, _ = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
                                           cv2.CHAIN_APPROX_SIMPLE)
         if contours:
-            current_polygon = Polygon(contours)
+            current_polygon = MyPolygon(contours)
         else:
             continue
 
@@ -118,7 +115,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         # LABEL EXTRACTION
         # Crop to have smaller image
         margin_text_label = 7
-        text_binary_crop, coordinates_crop_parcel = crop_with_margin(binary_text_segmented,                             # Size 1
+        text_binary_crop, coordinates_crop_parcel = crop_with_margin(binary_text_segmented,
                                                    cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
                                                    margin=margin_text_label, return_coords=True)
         (x_crop_parcel, y_crop_parcel, w_crop_parcel, h_crop_parcel) = coordinates_crop_parcel
@@ -132,9 +129,9 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
                                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
 
         # Find parcel number but do not consider small elements (open)
-        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))     # Size 1
+        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
         opening_kernel = (9, 9)
-        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,                                       # Size 1
+        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
                                               cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
         _, contours_blob_list, _ = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
                                                     cv2.CHAIN_APPROX_SIMPLE)
@@ -154,28 +151,10 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
             if len(contour_blob) < 5:  # There should be a least 5 points to fit the ellipse
                 continue
-                print('len_blob: ', len(contour_blob))
-            # Crop and keep track of coordinates of blob
-            # margin_crop = 2
-            # crop_binary_parcel_number, (x_crop_label, y_crop_label, w, h) = crop_with_margin(binary_parcel_number,      # Size 2
-            #                                                            cv2.boundingRect(contour_blob),
-            #                                                            margin=margin_crop,
-            #                                                            return_coords=True)
-            # contours_blob_offset = contour_blob[:, 0, :] - [x_crop_label, y_crop_label]                                 # Size 2
 
             # Compute rotation matrix and padding
             _, _, angle = find_orientation_blob(contour_blob)
             rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(binary_parcel_number.shape[:2], angle - 90)
-
-            # # Crop number and rotate horizontally
-            # parcel_number_crop = crop_with_margin(parcel_number, (x_crop_label, y_crop_label, w, h), margin=0)          # Size 2
-            # parcel_number_rotated, rotated_contours = rotate_image_and_crop(parcel_number_crop, rotation_matrix,        # Size 3
-            #                                                                 (x_pad, y_pad),
-            #                                                                 contours_blob_offset, border_value=0)
-
-            # parcel_number_clean = morphology.grey_erosion(parcel_number_rotated, (2, 2))
-            # # Inverse colormap to have white background
-            # parcel_number_clean = (-(parcel_number_clean.astype('float32') - 255)).astype('uint8')
 
             # Crop on grayscale image
             image_parcel_number = cadaster_grayscale[y_crop_parcel:y_crop_parcel + h_crop_parcel,
@@ -223,11 +202,13 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         print('-- EVALUATION --')
         result_parcel_localisation, \
         result_label_localisation, \
-        result_transcription = evaluate(polygons_list, parcel_groundtruth_matrix, numbers_groundtruth_matrix,
+        result_transcription, _ = evaluate(polygons_list, parcel_groundtruth_matrix, numbers_groundtruth_matrix,
                                         threshold_parcels=0.8, threshold_labels=0.8)
+        with open(pickle_filename, 'wb') as f:
+            pickle.dump(polygons_list, f)
 
-        evaluation_log_file(log_filename, results_parcels=result_parcel_localisation,
-                            result_numbers=(result_label_localisation, result_transcription))
+        evaluation_json_file(log_filename, results_parcels=result_parcel_localisation,
+                             result_numbers=(result_label_localisation, result_transcription))
 
     print('Cadaster image processed!')
 
@@ -241,7 +222,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     parser.add_argument('-tm', '--transcription_tf_model', type=str, help='Path of the tensorflow segmentation model '
                                                                           'for digit transcription')
     parser.add_argument('-g', '--gpu', type=str, help='GPU device, ('' For CPU)', default='')
-    parser.add_argument('-d', '--debug', type=bool, help='Plot intermediate resutls to facilitate debug', default=True)
+    parser.add_argument('-d', '--debug', type=bool, help='Plot intermediate resutls to facilitate debug', default=False)
     parser.add_argument('-ev', '--evaluate', type=bool, help='Evaluation of the results', default=False)
     args = vars(parser.parse_args())
 
