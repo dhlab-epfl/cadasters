@@ -10,7 +10,7 @@ from scipy.misc import imread, imsave
 from skimage.morphology import h_minima, watershed, label
 ***REMOVED***
 import pickle
-
+import click
 from src.utils import MyPolygon, crop_with_margin, find_orientation_blob, rotate_image_and_crop, get_rotation_matrix, \
     export_geojson
 from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_json_file
@@ -215,7 +215,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
 ***REMOVED***
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
-    parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str)
+    parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str, nargs='+')
     parser.add_argument('-out', '--output_dir', help='Output directory for results and plots.', type=str)
     parser.add_argument('-sm', '--segmentation_tf_model', type=str, help='Path of the tensorflow segmentation model '
                                                                           'for pixel-wise segmentation')
@@ -228,11 +228,17 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
     os.makedirs(args.get('output_dir'), exist_ok=True)
 
-    process_cadaster(args.get('cadaster_img'),
-                     denoising=False,
-                     segmentation_model_dir=args.get('segmentation_tf_model'),
-                     transcription_model_dir=args.get('transcription_tf_model'),
-                     output_dir=args.get('output_dir'),
-                     gpu=args.get('gpu'),
-                     plot=args.get('debug'),
-                     evaluation=bool(args.get('evaluate')))
+    if not isinstance(args.get('cadaster_img'), list):
+        cadaster_images_filenames = [args.get('cadaster_img')]
+    else:
+        cadaster_images_filenames = args.get('cadaster_img')
+
+    for cadaster_image_filename in tqdm(cadaster_images_filenames, desc='Processing_file'):
+        process_cadaster(cadaster_image_filename,
+                         denoising=False,
+                         segmentation_model_dir=args.get('segmentation_tf_model'),
+                         transcription_model_dir=args.get('transcription_tf_model'),
+                         output_dir=args.get('output_dir'),
+                         gpu=args.get('gpu'),
+                         plot=args.get('debug'),
+                         evaluation=bool(args.get('evaluate')))
