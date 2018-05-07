@@ -9,8 +9,9 @@ from collections import Counter
 import datetime
 import json
 from typing import List
-from .utils import Polygon, crop_with_margin
+from .utils import MyPolygon, crop_with_margin
 ***REMOVED***
+import Levenshtein
 
 
 class ResultsLocalization:
@@ -57,6 +58,98 @@ class ResultsTranscription:
         self.cer = self.levenshtein_distance / self.total_chars
 
 
+class TranscriptionStats:
+    def __init__(self, **kwargs):
+        self.prediction = kwargs.get('prediction')
+        self.groundtruth = kwargs.get('groundtruth')
+        self.confidence = kwargs.get('confidence')
+        self.total_chars = kwargs.get('total_chars')
+
+        if self.groundtruth is not None:
+            self.correctness = self._compute_correctness()
+            # if not self.correctness:
+            self.error_type, self.distance = self._compute_error()
+            # else:
+            #     self.error_type = None
+            #     self.distance = 0
+        else:
+            self.correctness = False
+            self.error_type = LabelErrorType.NOISE
+            self.distance = 0
+
+    def _compute_correctness(self) -> bool:
+        return self.prediction == self.groundtruth
+
+    def _compute_error(self) -> (str, float):
+        groundtruth_str = str(self.groundtruth)
+        prediction_str = str(self.prediction)
+        if groundtruth_str == prediction_str:
+            return None, 0
+        else:
+            if len(groundtruth_str) == len(prediction_str):
+                error_type = LabelErrorType.SUBSTITUTION
+                distance = Levenshtein.distance(groundtruth_str, prediction_str)
+            elif len(groundtruth_str) > len(prediction_str):
+                error_type = LabelErrorType.DELETION
+                distance = Levenshtein.distance(groundtruth_str, prediction_str)
+            elif len(groundtruth_str) < len(prediction_str):
+                error_type = LabelErrorType.INSERTION
+                distance = Levenshtein.distance(groundtruth_str, prediction_str)
+            else:
+                raise NotImplementedError
+
+            return error_type, distance
+
+
+class TranscriptionAnalysis:
+    def __init__(self, **kwargs):
+        self.list_stats = kwargs.get('stats')
+        self.correct_transcriptions, self.incorrect_transcriptions = self._separate_correct_from_incorrect()
+        self.insertions, self.deletions, self.substitutions, \
+            self.noise, self.distance_count = self._compute_error_rates()
+
+    def _separate_correct_from_incorrect(self) -> (list, list):
+        correct_transcriptions_list, incorrect_transcriptions_list = list(), list()
+        for transcription_stat in self.list_stats:
+            # Get correct boxes
+            if transcription_stat.correctness:
+                correct_transcriptions_list.append(transcription_stat)
+            else:
+                incorrect_transcriptions_list.append(transcription_stat)
+
+        return correct_transcriptions_list, incorrect_transcriptions_list
+
+    def _compute_error_rates(self) -> (float, float, float, dict):
+        insertions, deletions, substitutions, noise = 0, 0, 0, 0
+        distances = list()
+        for transcription in self.incorrect_transcriptions:
+            type_error = transcription.error_type
+            distances.append(transcription.distance)
+            if type_error == LabelErrorType.INSERTION:
+                insertions += 1
+            elif type_error == LabelErrorType.DELETION:
+                deletions += 1
+            elif type_error == LabelErrorType.SUBSTITUTION:
+                substitutions += 1
+            elif type_error == LabelErrorType.NOISE:
+                noise += 1
+
+        # insertion_rate = insertion / len(self.incorrect_transcriptions)
+        # deletion_rate = deletion / len(self.incorrect_transcriptions)
+        # substitution_rate = substitution / len(self.incorrect_transcriptions)
+        # noise_rate = noise / len(self.incorrect_transcriptions)
+        distances_count = Counter(distances)
+
+        return insertions, deletions, substitutions, noise, distances_count
+
+
+class LabelErrorType:
+    DELETION = 'DELETION'
+    SUBSTITUTION = 'SUBSTITUTION'
+    INSERTION = 'INSERTION'
+    NOISE = 'NOISE'
+
+
 def make_mask_pointPolyTest(mask_shape, contours, distance=False):
 ***REMOVED***"
     Computes the mask indicating if a pixel is within the polygon given by contours
@@ -77,28 +170,28 @@ def make_mask_pointPolyTest(mask_shape, contours, distance=False):
     return mask
 
 
-def minimum_edit_distance(s1, s2):
-***REMOVED***"
-    Computes the Levenshtein distence between 2 strings s1, s2
-    Taken from https://rosettacode.org/wiki/Levenshtein_distance#Python
-    :param s1:
-    :param s2:
-    :return: Levenshtein distance
-***REMOVED***"
-    if len(s1) > len(s2):
-        s1, s2 = s2, s1
-    distances = range(len(s1) + 1)
-    for index2, char2 in enumerate(s2):
-        newDistances = [index2+1]
-        for index1, char1 in enumerate(s1):
-            if char1 == char2:
-                newDistances.append(distances[index1])
-            else:
-                newDistances.append(1 + min((distances[index1],
-                                             distances[index1+1],
-                                             newDistances[-1])))
-        distances = newDistances
-    return distances[-1]
+# def minimum_edit_distance(s1, s2):
+# ***REMOVED***"
+#     Computes the Levenshtein distence between 2 strings s1, s2
+#     Taken from https://rosettacode.org/wiki/Levenshtein_distance#Python
+#     :param s1:
+#     :param s2:
+#     :return: Levenshtein distance
+# ***REMOVED***"
+#     if len(s1) > len(s2):
+#         s1, s2 = s2, s1
+#     distances = range(len(s1) + 1)
+#     for index2, char2 in enumerate(s2):
+#         newDistances = [index2+1]
+#         for index1, char1 in enumerate(s1):
+#             if char1 == char2:
+#                 newDistances.append(distances[index1])
+#             else:
+#                 newDistances.append(1 + min((distances[index1],
+#                                              distances[index1+1],
+#                                              newDistances[-1])))
+#         distances = newDistances
+#     return distances[-1]
 
 
 def get_labelled_digits_matrix(groundtruth_digits_filename: str) -> np.array:
@@ -182,24 +275,37 @@ def select_number_label_by_countour(numbers_image: np.array, contours: np.array,
     return extracted_label
 
 
-def evaluation_number_transcription(groundtruth_numbers_image: np.array, selected_label_mask: np.array, transcription: str):
+def evaluation_number_transcription(groundtruth_numbers_image: np.array, selected_label_mask: np.array,
+                                    transcription: str, score_prediction: float=None):
     # Count which is the label that appears the most and consider that it is the label of the parcel
     correct_label = Counter(groundtruth_numbers_image[selected_label_mask > 0]).most_common(1)[0][0]
     correct_label = str(correct_label)
-    if correct_label == '0':
-        result = False
-        levenshtein_distance = 0 #len(correct_label)
-        total_chars = 0
-    elif correct_label == transcription:
-        result = True
-        levenshtein_distance = 0
-        total_chars = len(str(correct_label))
+    if correct_label == '0':  # background
+        transcription_stats = TranscriptionStats(groundtruth=None,
+                                                 prediction=transcription,
+                                                 confidence=score_prediction,
+                                                 total_chars=0)
     else:
-        result = False
-        levenshtein_distance = minimum_edit_distance(correct_label, transcription)
-        total_chars = len(str(correct_label))
+        transcription_stats = TranscriptionStats(groundtruth=correct_label,
+                                                 prediction=transcription,
+                                                 confidence=score_prediction,
+                                                 total_chars=len(str(correct_label)))
 
-    return result, levenshtein_distance, total_chars
+    # if correct_label == '0':  # background
+    #     result = False
+    #     levenshtein_distance = 0 #len(correct_label)
+    #     total_chars = 0
+    # elif correct_label == transcription:
+    #     result = True
+    #     levenshtein_distance = 0
+    #     total_chars = len(str(correct_label))
+    # else:
+    #     result = False
+    #     levenshtein_distance = minimum_edit_distance(correct_label, transcription)
+    #     total_chars = len(str(correct_label))
+
+    # return result, levenshtein_distance, total_chars
+    return transcription_stats
 
 
 def evaluation_number_localization(groundtruth_numbers_image: np.array, selected_number_mask: np.array,
@@ -232,37 +338,37 @@ def evaluation_number_localization(groundtruth_numbers_image: np.array, selected
         return False
 
 
-def evaluation_log_file(log_filenename: str, **kwargs) -> None:
+def evaluation_json_file(json_filename: str, **kwargs) -> None:
 
+    json_dict = dict()
     results_parcels = kwargs.get('results_parcels')
     results_numbers_tuple = kwargs.get('result_numbers')
 
     date = datetime.datetime.now()
-    log_file = open(log_filenename, 'w+')
-    log_file.write('# Date of log creation : ***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED*** at ***REMOVED***:02d***REMOVED***:***REMOVED***:02d***REMOVED*** \n'
-                   .format(date.day, date.month, date.year, date.hour, date.minute))
+
+    json_dict['creation_date'] = '***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED*** at ***REMOVED***:02d***REMOVED***:***REMOVED***:02d***REMOVED***'\
+        .format(date.day, date.month, date.year, date.hour, date.minute)
     if results_parcels:
-        log_file.write('-- Evaluation parcels --\n')
-        log_file.write(json.dumps(vars(results_parcels)))
+        json_dict['evaluation_parcels'] = vars(results_parcels)
 
     if results_numbers_tuple:
         result_localization, result_recognition = results_numbers_tuple
-        log_file.write('\n-- Evaluation digits --\n')
-        log_file.write('\n** Localization\n')
-        log_file.write(json.dumps(vars(result_localization)))
-        log_file.write('\n** Recognition\n')
-        log_file.write(json.dumps(vars(result_recognition)))
+        json_dict['evaluation_digits'] = ***REMOVED***'localization': vars(result_localization),
+                                          'recognition': vars(result_recognition)***REMOVED***
 
-    log_file.close()
+    with open(json_filename, 'w') as outfile:
+        json.dump(json_dict, outfile)
 
 
-def evaluate(polygons_list: List[Polygon], groundtruth_parcels, groundtruth_numbers, threshold_parcels: float,
+def evaluate(polygons_list: List[MyPolygon], groundtruth_parcels, groundtruth_numbers, threshold_parcels: float,
              threshold_labels: float) -> (ResultsLocalization, ResultsLocalization, ResultsTranscription):
     result_parcel_localisation = ResultsLocalization(thresh=threshold_parcels, iou=True,
                                                      total_truth=len(np.unique(groundtruth_parcels)) - 1)
     result_label_localisation = ResultsLocalization(thresh=threshold_labels, iou=False,
                                                     total_truth=len(np.unique(groundtruth_numbers)) - 1)
     result_transcription = ResultsTranscription(total_truth=len(np.unique(groundtruth_numbers)) - 1)
+    
+    transcriptions_stats_list = list()
 
     for polygon in tqdm(polygons_list, total=len(polygons_list)):
         parcel_groundtruth_crop, \
@@ -286,14 +392,19 @@ def evaluate(polygons_list: List[Polygon], groundtruth_parcels, groundtruth_numb
             contour = (contour[:, 0, :] - [x, y])[:, None, :]
             selected_label_mask = select_number_label_by_countour(numbers_groundtruth_crop, [contour])
             # Evaluation transcription
-            transcription_evaluated, levenshtein_distance, total_chars \
-                = evaluation_number_transcription(numbers_groundtruth_crop,
-                                                  selected_label_mask,
-                                                  transcription)
-            result_transcription.correct_transcription += transcription_evaluated
+            # transcription_evaluated, levenshtein_distance, total_chars \
+            #     = evaluation_number_transcription(numbers_groundtruth_crop,
+            #                                       selected_label_mask,
+            #                                       transcription)
+            transcription_stats = evaluation_number_transcription(numbers_groundtruth_crop,
+                                                                  selected_label_mask,
+                                                                  transcription)
+            result_transcription.correct_transcription += transcription_stats.correctness
             result_transcription.total_predicted += 1
-            result_transcription.levenshtein_distance += levenshtein_distance
-            result_transcription.total_chars += total_chars
+            result_transcription.levenshtein_distance += transcription_stats.distance
+            result_transcription.total_chars += transcription_stats.total_chars
+
+            transcriptions_stats_list.append(transcription_stats)
 
             # Evaluation label localization
             number_localization_evaluated = evaluation_number_localization(numbers_groundtruth_crop,
@@ -307,6 +418,7 @@ def evaluate(polygons_list: List[Polygon], groundtruth_parcels, groundtruth_numb
     result_label_localisation.compute_metrics()
     result_parcel_localisation.compute_metrics()
     result_transcription.compute_metrics()
+    transcription_analysis = TranscriptionAnalysis(stats=transcriptions_stats_list)
 
-    return result_parcel_localisation, result_label_localisation, result_transcription
+    return result_parcel_localisation, result_label_localisation, result_transcription, transcription_analysis
 
