@@ -68,6 +68,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
     session_config.gpu_options.visible_device_list = gpu
     session_config.gpu_options.per_process_gpu_memory_fraction = 0.9
 
+    tf.reset_default_graph()
     with tf.Session(config=session_config):
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
         # prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
@@ -91,107 +92,108 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
 
     # Tensorflow : loading transcription model
     tf.reset_default_graph()
-    transcription_session = tf.Session(config=session_config)
-    loaded_model = PredictionModel(transcription_model_dir, transcription_session)
+    # transcription_session = tf.Session(config=session_config)
+    with tf.Session() as session:
+        loaded_model = PredictionModel(transcription_model_dir, session)
 
-    polygons_list = list()
-    for marker_labels in tqdm(np.unique(watershed_parcels), total=len(np.unique(watershed_parcels))):
+        polygons_list = list()
+        for marker_labels in tqdm(np.unique(watershed_parcels), total=len(np.unique(watershed_parcels))):
 
-        # PARCEL EXTRACTION
-        mask_parcels = watershed_parcels == marker_labels
-        _, contours, _ = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
-                                          cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            current_polygon = MyPolygon(contours)
-        else:
-            continue
-
-        # Binarize probs with Otsu's threshold
-        _, binary_text_segmented = cv2.threshold(cv2.GaussianBlur((text_segmented_probs * 255).astype('uint8'),
-                                                                  (3, 3), 0),
-                                                 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        binary_text_segmented = cv2.morphologyEx(binary_text_segmented, cv2.MORPH_OPEN,
-                                                 cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-        # LABEL EXTRACTION
-        # Crop to have smaller image
-        margin_text_label = 7
-        text_binary_crop, coordinates_crop_parcel = crop_with_margin(binary_text_segmented,
-                                                   cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
-                                                   margin=margin_text_label, return_coords=True)
-        (x_crop_parcel, y_crop_parcel, w_crop_parcel, h_crop_parcel) = coordinates_crop_parcel
-        binary_parcel_number = (255 * text_binary_crop * crop_with_margin(mask_parcels, coordinates_crop_parcel,
-                                                                          margin=0)).astype('uint8')
-        parcel_number = (255 * crop_with_margin(text_segmented_probs, coordinates_crop_parcel, margin=0)
-                         * crop_with_margin(mask_parcels, coordinates_crop_parcel, margin=0)).astype('uint8')
-
-        # Cleaning : Morphological opening
-        binary_parcel_number = cv2.morphologyEx(binary_parcel_number, cv2.MORPH_OPEN,
-                                                cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-
-        # Find parcel number but do not consider small elements (open)
-        parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
-        opening_kernel = (9, 9)
-        parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
-                                              cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
-        _, contours_blob_list, _ = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
-                                                    cv2.CHAIN_APPROX_SIMPLE)
-
-        if contours_blob_list is None:
-            continue
-
-        if plot:
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_number_binarization.jpg'.format(current_polygon.uuid)), binary_parcel_number)
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel_blob.jpg'.format(current_polygon.uuid)), parcel_number_blob)
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_text_probs.jpg'.format(current_polygon.uuid)), parcel_number)
-
-        number_predicted_list = list()
-        scores_list = list()
-        label_contour_list = list()
-        for i, contour_blob in enumerate(contours_blob_list):
-
-            if len(contour_blob) < 5:  # There should be a least 5 points to fit the ellipse
+            # PARCEL EXTRACTION
+            mask_parcels = watershed_parcels == marker_labels
+            _, contours, _ = cv2.findContours(mask_parcels.astype('uint8').copy(), cv2.RETR_CCOMP,
+                                              cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                current_polygon = MyPolygon(contours)
+            else:
                 continue
 
-            # Compute rotation matrix and padding
-            _, _, angle = find_orientation_blob(contour_blob)
-            rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(binary_parcel_number.shape[:2], angle - 90)
+            # Binarize probs with Otsu's threshold
+            _, binary_text_segmented = cv2.threshold(cv2.GaussianBlur((text_segmented_probs * 255).astype('uint8'),
+                                                                      (3, 3), 0),
+                                                     0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            binary_text_segmented = cv2.morphologyEx(binary_text_segmented, cv2.MORPH_OPEN,
+                                                     cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+            # LABEL EXTRACTION
+            # Crop to have smaller image
+            margin_text_label = 7
+            text_binary_crop, coordinates_crop_parcel = crop_with_margin(binary_text_segmented,
+                                                       cv2.boundingRect(current_polygon.approximate_coordinates(epsilon=1)),
+                                                       margin=margin_text_label, return_coords=True)
+            (x_crop_parcel, y_crop_parcel, w_crop_parcel, h_crop_parcel) = coordinates_crop_parcel
+            binary_parcel_number = (255 * text_binary_crop * crop_with_margin(mask_parcels, coordinates_crop_parcel,
+                                                                              margin=0)).astype('uint8')
+            parcel_number = (255 * crop_with_margin(text_segmented_probs, coordinates_crop_parcel, margin=0)
+                             * crop_with_margin(mask_parcels, coordinates_crop_parcel, margin=0)).astype('uint8')
 
-            # Crop on grayscale image
-            image_parcel_number = cadaster_grayscale[y_crop_parcel:y_crop_parcel + h_crop_parcel,
-                                  x_crop_parcel:x_crop_parcel + w_crop_parcel]
+            # Cleaning : Morphological opening
+            binary_parcel_number = cv2.morphologyEx(binary_parcel_number, cv2.MORPH_OPEN,
+                                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
 
-            image_parcel_number_rotated, rotated_contours = rotate_image_and_crop(image_parcel_number, rotation_matrix,
-                                                                                  (x_pad, y_pad),
-                                                                                  contour_blob[:, 0, :],
-                                                                                  border_value=128)
+            # Find parcel number but do not consider small elements (open)
+            parcel_number_blob = cv2.dilate(binary_parcel_number, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7)))
+            opening_kernel = (9, 9)
+            parcel_number_blob = cv2.morphologyEx(parcel_number_blob, cv2.MORPH_OPEN,
+                                                  cv2.getStructuringElement(cv2.MORPH_RECT, opening_kernel))
+            _, contours_blob_list, _ = cv2.findContours(parcel_number_blob.copy(), cv2.RETR_TREE,
+                                                        cv2.CHAIN_APPROX_SIMPLE)
 
-            x_box, y_box, w_box, h_box = cv2.boundingRect(rotated_contours)
-            margin_box = 0
-            grayscale_number_crop = image_parcel_number_rotated[y_box + margin_box:y_box + h_box - margin_box,
-                                    x_box + margin_box:x_box + w_box - margin_box]
-
-            if grayscale_number_crop.size < 100:
+            if contours_blob_list is None:
                 continue
 
             if plot:
-                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_crop***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
-                       image_parcel_number)
-                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_rotated***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
-                       grayscale_number_crop)
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_number_binarization.jpg'.format(current_polygon.uuid)), binary_parcel_number)
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel_blob.jpg'.format(current_polygon.uuid)), parcel_number_blob)
+                imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_text_probs.jpg'.format(current_polygon.uuid)), parcel_number)
 
-            # TRANSCRIPTION
-            try:
-                predictions = loaded_model.predict(grayscale_number_crop[:, :, None])
-                number_predicted_list.append(predictions['words'][0].decode('utf8'))
-                scores_list.append(predictions['score'][0])
-                label_contour_list.append((contour_blob[:, 0, :] + [x_crop_parcel, y_crop_parcel])[:, None, :])
-            except:
-                pass
+            number_predicted_list = list()
+            scores_list = list()
+            label_contour_list = list()
+            for i, contour_blob in enumerate(contours_blob_list):
 
-        # Add transcription and score to Polygon object
-        current_polygon.assign_transcription(number_predicted_list, scores_list, label_contour_list)
+                if len(contour_blob) < 5:  # There should be a least 5 points to fit the ellipse
+                    continue
 
-        polygons_list.append(current_polygon)
+                # Compute rotation matrix and padding
+                _, _, angle = find_orientation_blob(contour_blob)
+                rotation_matrix, (x_pad, y_pad) = get_rotation_matrix(binary_parcel_number.shape[:2], angle - 90)
+
+                # Crop on grayscale image
+                image_parcel_number = cadaster_grayscale[y_crop_parcel:y_crop_parcel + h_crop_parcel,
+                                      x_crop_parcel:x_crop_parcel + w_crop_parcel]
+
+                image_parcel_number_rotated, rotated_contours = rotate_image_and_crop(image_parcel_number, rotation_matrix,
+                                                                                      (x_pad, y_pad),
+                                                                                      contour_blob[:, 0, :],
+                                                                                      border_value=128)
+
+                x_box, y_box, w_box, h_box = cv2.boundingRect(rotated_contours)
+                margin_box = 0
+                grayscale_number_crop = image_parcel_number_rotated[y_box + margin_box:y_box + h_box - margin_box,
+                                        x_box + margin_box:x_box + w_box - margin_box]
+
+                if grayscale_number_crop.size < 100:
+                    continue
+
+                if plot:
+                    imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_crop***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+                           image_parcel_number)
+                    imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_rotated***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+                           grayscale_number_crop)
+
+                # TRANSCRIPTION
+                try:
+                    predictions = loaded_model.predict(grayscale_number_crop[:, :, None])
+                    number_predicted_list.append(predictions['words'][0].decode('utf8'))
+                    scores_list.append(predictions['score'][0])
+                    label_contour_list.append((contour_blob[:, 0, :] + [x_crop_parcel, y_crop_parcel])[:, None, :])
+                except:
+                    pass
+
+            # Add transcription and score to Polygon object
+            current_polygon.assign_transcription(number_predicted_list, scores_list, label_contour_list)
+
+            polygons_list.append(current_polygon)
 
     # Export GEOJSON file
     export_filename = os.path.join(output_dir, 'parcels_***REMOVED******REMOVED***.geojson'.format(os.path.split(filename_img)[1].split('.')[0]))
