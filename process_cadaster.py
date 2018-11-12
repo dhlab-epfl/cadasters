@@ -6,7 +6,7 @@ import argparse
 import cv2
 import numpy as np
 import tensorflow as tf
-from scipy.misc import imread, imsave
+from imageio import imread, imsave
 from skimage.morphology import h_minima, watershed, label
 ***REMOVED***
 import pickle
@@ -205,7 +205,7 @@ def process_cadaster(filename_img: str, denoising: bool, segmentation_model_dir:
         result_parcel_localisation, \
         result_label_localisation, \
         result_transcription, _ = evaluate(polygons_list, parcel_groundtruth_matrix, numbers_groundtruth_matrix,
-                                        threshold_parcels=0.8, threshold_labels=0.8)
+                                           threshold_parcels=0.8, threshold_labels=0.8)
         with open(pickle_filename, 'wb') as f:
             pickle.dump(polygons_list, f)
 
