@@ -36,7 +36,7 @@ def get_valid_shapes(features: List[Dict], verbose: bool=False) -> List[Dict]:
                 print(' - Geojson shape is not readable. (counter invalid: ***REMOVED******REMOVED***)'.format(invalid_count))
                 print(feature)
 
-    print('Found ***REMOVED******REMOVED*** invalid shapes.'.format(invalid_count))
+    print('   Found ***REMOVED******REMOVED*** invalid shapes.'.format(invalid_count))
 
     return valid_features
 
@@ -63,9 +63,10 @@ def clean_and_export(filename_original: str, export_dir: str) -> None:
     with open(clean_geojson_filename, 'w') as f:
         json.dump(geojson_content, f)
 
-@click.command()
-@click.option('--export-dir', help='Folder where the cleaned geojson files will be exported')
-@click.argument('list_filenames', nargs=-1)
+
+# @click.command()
+# @click.option('-e', '--export-dir', 'export_dir', help='Folder where the cleaned geojson files will be exported')
+# @click.argument('list_filenames', nargs=-1)
 def batch_clean_and_export(list_filenames: List[str], export_dir: str):
 ***REMOVED***"
 
@@ -73,12 +74,14 @@ def batch_clean_and_export(list_filenames: List[str], export_dir: str):
     :param export_dir: directory to export the cleaned geojson files
     :return:
 ***REMOVED***"
-    if os.path.exists(export_dir):
+
+    if os.path.isdir(export_dir):
         print('Export directory already exists')
     else:
         os.makedirs(export_dir)
 
     for filename in list_filenames:
+        print('Processing ***REMOVED******REMOVED***'.format(filename))
         clean_and_export(filename, export_dir)
 
 
