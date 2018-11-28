@@ -2,16 +2,20 @@
 __author__ = "solivr"
 __license__ = "GPL"
 
-from typing import List, Dict
+from typing import List, Dict, Union
 from shapely.geometry import shape
 import geojson
 import json
 ***REMOVED***
 import click
+import pandas as pd
+import geopandas as gpd
+import numpy as np
 
 
 def get_valid_shapes(features: List[Dict], verbose: bool=False) -> List[Dict]:
 ***REMOVED***"
+     Remove invalid shapes from a list of GeometryFeatures.
 
     :param features: list of geojson Feature type objects (shapely.geometry.shape)
     :param verbose: if True will print the invalid Features
@@ -43,6 +47,7 @@ def get_valid_shapes(features: List[Dict], verbose: bool=False) -> List[Dict]:
 
 def clean_and_export(filename_original: str, export_dir: str) -> None:
 ***REMOVED***"
+    Remove invalid shapes from geojsonfile and exports a nes geojson file
 
     :param filename_original: filename of the original geojson file
     :param export_dir: directory to export the cleaned geojson files
@@ -84,6 +89,18 @@ def batch_clean_and_export(list_filenames: List[str], export_dir: str):
         print('Processing ***REMOVED******REMOVED***'.format(filename))
         clean_and_export(filename, export_dir)
 
+#
+# ***REMOVED***
+#     batch_clean_and_export()
 
-***REMOVED***
-    batch_clean_and_export()
+
+def filter_by_area(geodataframe: Union[pd.DataFrame, gpd.GeoDataFrame], min_area: float=0, max_area: float=np.inf):
+
+    geodataframe['area'] = geodataframe.geometry.apply(lambda s: s.area)
+
+    # remove small area regions
+    geodataframe = geodataframe[geodataframe.area > min_area]
+    # remove big area
+    geodataframe = geodataframe[geodataframe.area < max_area]
+
+    return geodataframe
