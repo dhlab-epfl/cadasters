@@ -35,9 +35,9 @@ def process_parcels_with_numbers(input_geojson: Union[List[str], str], geotif_di
 
         # add colum with tif filename
         # gdf_with_numbers = gdf_with_numbers.assign(filename=filename)
-        _, basenme = os.path.split(filename)
-        id_map_sheet = re.search('[0-9]***REMOVED***2***REMOVED***', basenme).group()
-        tif_filename_list = glob(os.path.abspath(os.path.join(geotif_directory, '****REMOVED******REMOVED****'.format(id_map_sheet))))
+        _, basename = os.path.split(filename)
+        id_map_sheet = re.search('[0-9]***REMOVED***2***REMOVED***', basename).group()
+        tif_filename_list = glob(os.path.abspath(os.path.join(geotif_directory, '****REMOVED******REMOVED****.tif*'.format(id_map_sheet))))
         if len(tif_filename_list) != 1:
             raise ValueError
         else:

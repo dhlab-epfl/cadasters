@@ -11,7 +11,7 @@ import numpy as np
 
 app = dash.Dash()
 
-data_files = glob('./filt/*.geojson')
+data_files = glob('./filt/*filt*.geojson')
 
 data_list = list()
 raw_data_list = list()
@@ -28,8 +28,8 @@ data_graph = [
         type='scattermapbox',
         lon=data.centroid.x,
         lat=data.centroid.y,
-        text=["***REMOVED******REMOVED***<br>***REMOVED******REMOVED***".format(s, t) for s, t in zip(data.score, data.transcription)],
-        customdata=data.transcription,
+        text=["***REMOVED******REMOVED***<br>***REMOVED******REMOVED***".format(s, t) for s, t in zip(data.score, data.best_transcription)],
+        customdata=data.best_transcription,
         hoverinfo='text',
         marker=dict(
             size=4,

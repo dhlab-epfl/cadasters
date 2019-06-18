@@ -5,6 +5,9 @@ __license__ = "GPL"
 from typing import Union
 import pandas as pd
 import geopandas as gpd
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
+***REMOVED***
 
 
 def iou_get_precision(dataframe_correspondencies: Union[pd.DataFrame, gpd.GeoDataFrame],
@@ -121,3 +124,72 @@ def transcriptions_without_outliers_get_recall(dataframe_correspondencies: Union
                sum(has_correct_transcription.is_outlier == False)
     else:
         sum(has_correct_transcription.is_outlier == False) / len(gt_has_transcription)
+
+
+def get_correspondencies(dataframe_shapes_automatically_produced: Union[pd.DataFrame, gpd.GeoDataFrame],
+                         dataframe_shapes_mannually_produced: Union[pd.DataFrame, gpd.GeoDataFrame],
+                         n_neighbors:int=3) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+***REMOVED***"
+
+
+    :param dataframe_shapes_automatically_produced: must contain columns `uuid`, `best_transcription`, `geometry`,
+    `image_filename`, `is_outlier`
+    :param dataframe_shapes_mannually_produced: must_contain columns `ID`, `uuid`, `geometry`, `centroid`
+    :return: a dataframe of the sime size as `dataframe_shapes_automatically_produced` with the corresponding shapes
+    of the `dataframe_shapes_mannually_produced`
+***REMOVED***"
+    #  Need to create correspondencies between manually corrected and extracted
+    df_correspondances = dataframe_shapes_automatically_produced.copy()
+    columns_to_add = ['iou', 'manual_geom', 'manual_ID', 'manual_uuid']
+    for lab in columns_to_add:
+        df_correspondances[lab] = pd.Series(np.nan)
+
+    nearestneigh_ncorresp = NearestNeighbors(n_neighbors=n_neighbors, radius=100.0)
+
+    # create a array with cent_x, cent_y
+    centroids_auto = np.stack([df_correspondances.centroid.apply(lambda c: c.x).values,
+                               df_correspondances.centroid.apply(lambda c: c.y).values],
+                              axis=1)
+    nearestneigh_ncorresp.fit(centroids_auto)
+
+    # Compute also the centroid for manually annotated data
+    centroids_manual = np.stack([dataframe_shapes_mannually_produced.centroid.apply(lambda c: c.x).values,
+                                 dataframe_shapes_mannually_produced.centroid.apply(lambda c: c.y).values],
+                                axis=1)
+
+    # Find correpondencies
+    already_existing = pd.DataFrame()
+    for i in tqdm(range(len(centroids_manual))):
+
+        centroid_point = centroids_manual[i]
+        # Find which are the closest neighbors
+        distances, indexes_neighboring_centroids = nearestneigh_ncorresp.kneighbors([centroid_point])
+
+        # Find 3 closest shapes in the auto processed shapes
+        df_nns = df_correspondances.loc[df_correspondances.index[indexes_neighboring_centroids].values[0]]
+
+        row_manual = dataframe_shapes_mannually_produced.iloc[i]
+        nearest_ious = df_nns.geometry.apply(
+            lambda s: s.intersection(row_manual.geometry).area / s.union(row_manual.geometry).area).sort_values(
+            ascending=False)
+
+        # TODO verify that there are no overlapping shapes in layer
+        iou = nearest_ious.iloc[0]
+        index = nearest_ious.index[0]
+
+        if df_correspondances.loc[index, 'iou'] > iou:
+            # print('iou exists already')
+            already_existing.append(row_manual)
+            continue
+
+        df_correspondances.loc[index, 'iou'] = iou
+        # -1 to indicate there was no ID
+        df_correspondances.loc[index, 'manual_ID'] = int(row_manual.ID) if not np.isnan(row_manual.ID) else -1
+        df_correspondances.loc[index, 'manual_geom'] = row_manual.geometry
+
+        if iou > 0:
+            df_correspondances.loc[index, 'manual_uuid'] = row_manual.uuid
+        else:
+            df_correspondances.loc[index, 'manual_uuid'] = -1
+
+    return df_correspondances
