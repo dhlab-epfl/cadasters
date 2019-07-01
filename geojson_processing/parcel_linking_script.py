@@ -39,7 +39,7 @@ def process_parcels_with_numbers(input_geojson: Union[List[str], str], geotif_di
         id_map_sheet = re.search('[0-9]***REMOVED***2***REMOVED***', basename).group()
         tif_filename_list = glob(os.path.abspath(os.path.join(geotif_directory, '****REMOVED******REMOVED****.tif*'.format(id_map_sheet))))
         if len(tif_filename_list) != 1:
-            raise ValueError
+            raise ValueError('There are more than 1 item with id ***REMOVED******REMOVED***'.format(id_map_sheet))
         else:
             tif_filename = tif_filename_list[0]
         gdf_with_numbers = gdf_with_numbers.assign(image_filename=os.path.basename(tif_filename))
