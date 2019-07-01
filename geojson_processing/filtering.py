@@ -69,9 +69,6 @@ def clean_and_export(filename_original: str, export_dir: str) -> None:
         json.dump(geojson_content, f)
 
 
-# @click.command()
-# @click.option('-e', '--export-dir', 'export_dir', help='Folder where the cleaned geojson files will be exported')
-# @click.argument('list_filenames', nargs=-1)
 def batch_clean_and_export(list_filenames: List[str], export_dir: str):
 ***REMOVED***"
 
@@ -89,12 +86,10 @@ def batch_clean_and_export(list_filenames: List[str], export_dir: str):
         print('Processing ***REMOVED******REMOVED***'.format(filename))
         clean_and_export(filename, export_dir)
 
-#
-# ***REMOVED***
-#     batch_clean_and_export()
 
-
-def filter_by_area(geodataframe: Union[pd.DataFrame, gpd.GeoDataFrame], min_area: float=0, max_area: float=np.inf):
+def filter_by_area(geodataframe: Union[pd.DataFrame, gpd.GeoDataFrame],
+                   min_area: float=0,
+                   max_area: float=np.inf) -> gpd.GeoDataframe:
 
     geodataframe['area'] = geodataframe.geometry.apply(lambda s: s.area)
 
@@ -104,3 +99,14 @@ def filter_by_area(geodataframe: Union[pd.DataFrame, gpd.GeoDataFrame], min_area
     geodataframe = geodataframe[geodataframe.area < max_area]
 
     return geodataframe
+
+
+def remove_empty_transcripts(geodataframe: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+
+    # remove transcription and score columns
+    geodataframe.drop(['transcription', 'score'], axis=1, inplace=True)
+
+    # Keep only the rows that have a transcription
+    gdf_with_numbers = geodataframe[geodataframe.best_transcription != '']
+
+    return gdf_with_numbers
