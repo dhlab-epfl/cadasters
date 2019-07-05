@@ -13,13 +13,16 @@ from geojson_processing.filtering import filter_by_area, remove_empty_transcript
 @click.argument('geojson_files', nargs=-1)
 @click.option('--geotif_directory', help='Directory containing the geotifs of the images')
 @click.option('--exported_merged_geojson_filename', help='Filename (geoJSON) to save the merged and filtered geodataframe')
+@click.option('--remove_empty_transcriptions', help="Wether to remove or not rows that have no transcription", default=False)
 def merge_and_filter_geojson(geojson_files: List[str],
                              geotif_directory: str,
-                             exported_merged_geojson_filename: str):
+                             exported_merged_geojson_filename: str,
+                             remove_empty_transcriptions: bool=False):
     gdf_global = concat_geojson_files(geojson_files, geotif_directory)
 
     # remove emtpy transcriptions
-    gdf_global = remove_empty_transcripts(gdf_global)
+    if remove_empty_transcriptions:
+        gdf_global = remove_empty_transcripts(gdf_global)
 
     # convert transcription to int
     gdf_global.best_transcription = gdf_global.best_transcription.apply(lambda t: int(t) if t else np.nan)
