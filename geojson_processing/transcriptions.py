@@ -43,16 +43,29 @@ def find_transcriptions_outliers(geodataframe_with_transcriptions: Union[pd.Data
         distances, indexes_neighboring_centroids = nneigh.kneighbors([centroid_point])
 
         df_nns = geodataframe_with_transcriptions.loc[geodataframe_with_transcriptions.index[indexes_neighboring_centroids].values[0]]
-        # difference between the neighboring transcriptions and the current trnscription
-        median_diff = abs(np.median(df_nns[1:].best_transcription - df_nns.iloc[0].best_transcription))
+
+        # Remove the smallest and largest value
+        current_item = df_nns.iloc[0].copy()
+        if len(df_nns) >= 4:
+            df_nns_truncated = df_nns.iloc[1:].copy()
+            df_nns_truncated.sort_values('best_transcription', inplace=True)
+            df_nns_truncated = df_nns_truncated.iloc[1:-1]
+
+            # difference between the neighboring transcriptions and the current transcription
+            median_diff = abs(np.median(df_nns_truncated.best_transcription - current_item.best_transcription))
+            median_transcription = np.median(df_nns_truncated.best_transcription)
+        else:
+            print('number of NNs smaller than 4')
+            # difference between the neighboring transcriptions and the current transcription
+            median_diff = abs(np.median(df_nns[1:].best_transcription - current_item.best_transcription))
+            median_transcription = np.median(df_nns[1:].best_transcription)
 
         if return_median:
-            median_transcription = np.median(df_nns[1:].best_transcription)
-            geodataframe_with_transcriptions.loc[df_nns.iloc[0].name, 'median_transcription'] = median_transcription
+            geodataframe_with_transcriptions.loc[current_item.name, 'median_transcription'] = median_transcription
 
         if median_diff <= tolerance:
-            geodataframe_with_transcriptions.loc[df_nns.iloc[0].name, 'is_outlier'] = False
+            geodataframe_with_transcriptions.loc[current_item.name, 'is_outlier'] = False
         else:
-            geodataframe_with_transcriptions.loc[df_nns.iloc[0].name, 'is_outlier'] = True
+            geodataframe_with_transcriptions.loc[current_item.name, 'is_outlier'] = True
 
     return geodataframe_with_transcriptions

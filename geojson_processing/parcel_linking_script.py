@@ -58,4 +58,4 @@
 #         return geodataframes_to_concatenate[0]
 #     else:
 #         raise NotImplementedError
-#
+# TODO : use merging.concat_geojson_files instead

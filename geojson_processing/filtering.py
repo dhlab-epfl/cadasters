@@ -89,7 +89,7 @@ def batch_clean_and_export(list_filenames: List[str], export_dir: str):
 
 def filter_by_area(geodataframe: Union[pd.DataFrame, gpd.GeoDataFrame],
                    min_area: float=0,
-                   max_area: float=np.inf) -> gpd.GeoDataframe:
+                   max_area: float=np.inf) -> gpd.GeoDataFrame:
 
     geodataframe['area'] = geodataframe.geometry.apply(lambda s: s.area)
 
