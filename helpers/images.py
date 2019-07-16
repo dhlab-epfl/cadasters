@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from typing import List
 
 
 def rgb2gray(img, channel_order= 'RGB'):
@@ -40,29 +41,21 @@ def bgr2rgb(img_bgr):
 # --------------------------------------
 
 
-def merge_segments(list_segments, seg_to_merge, label):
+def merge_segments(slic_segments: np.array, seg_to_merge: List[int], label: int):
     """
     Merge segments in seg_to_merge and update the map of segments list_segments
 
-    :param list_segments: Map of labels of segments/superpixels
+    :param slic_segments: Map of labels of segments/superpixels
     :param seg_to_merge: list of segment's labels to merge
     :param label: new label to assign to the merged segments
     """
 
-    # nb_seg = len(seg_to_merge)
-    # m1 = list_segments == seg_to_merge[0]
-    # for s in range(1, nb_seg):
-    #     m2 = list_segments == seg_to_merge[s]
-    #     m1 = np.logical_or(m1, m2)
-    #
-    # list_segments[m1] = label
-
     # Alternative
     for s in seg_to_merge:
         # Find where the segment to merge is
-        seg_new_label = list_segments == s
+        seg_new_label = slic_segments == s
         # Assign a new label to the segments
-        list_segments[seg_new_label] = label
+        slic_segments[seg_new_label] = label
 # --------------------------------------
 
 

@@ -54,7 +54,9 @@ class ResultsTranscription:
             self.cer = sums_partials / self.total_chars
             self.partial_measure = None
 
-
+    def serialize(self):
+        self.partial_transcription = self.partial_transcription.tolist()
+        return self
 
 
 class BoxLabelPrediction:
@@ -90,7 +92,7 @@ class BoxLabelPrediction:
     def _compute_correctness(self) -> bool:
         return self.prediction == self.groundtruth
 
-    def _compute_error_type(self):
+    def _compute_error_type(self) -> (str, float):
         groundtruth_str = str(self.groundtruth)
         prediction_str = str(self.prediction)
         if groundtruth_str == prediction_str:

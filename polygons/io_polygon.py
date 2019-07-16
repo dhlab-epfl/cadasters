@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import geojson
 from geojson import FeatureCollection
 import cv2

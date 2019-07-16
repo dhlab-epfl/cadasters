@@ -5,3 +5,4 @@ from .images import merge_segments, padding, rgb2gray, bgr2rgb, rotate_image, ro
 from .strings import minimum_edit_distance, count_correct_characters
 from .evaluation_results import ResultsLocalization, ResultsTranscription, BoxLabelPrediction, \
     LabelErrorType, BoxesAnalysis
+from .config import Params

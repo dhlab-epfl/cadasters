@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+__author__ = 'solivr'
 
 import cv2, sys, os, pickle, copy, json, time, argparse
+from osgeo import gdal
 import numpy as np
 import networkx as nx
 import tensorflow as tf
@@ -8,6 +10,7 @@ from collections import OrderedDict
 from preprocessing import image_filtering, features_extraction
 from segmentation import compute_slic
 import helpers, polygons, graph
+from helpers import Params
 from classification import node_classifier
 import text as txt
 try:
@@ -16,75 +19,14 @@ except ImportError:
     pass
 
 
-def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_merge, tf_model_dir=None,
-                     show_plots=True, evaluation=False, debug=False, gpu_device=''):
+def segment_cadaster(filename_cadaster_img: str, tf_model_dir: str, params: Params) -> None:
     """
     Launches the segmentation of the cadaster image and outputs
 
     :param filename_cadaster_img: cadaster image to be processed
-    :param output_path: output directory to save the plots and the results
-    :param params_slic: dictionnary of parameters or SLIC algorithm
-                        'mode' : 'L' or 'RGB' (recommended) channel(s) to which SLIC is applied
-                        'percent' : related to the number os desired segments. Percent is a percentage of
-                                    the total number of pixels of the image
-                        'numCompact' : parameter of compactness of SLIC algorithm
-                        'sigma' : width of gaussian kernel for smoothing in SLIC algorithm
-    :param params_merge: parameters for graph node merging (dictionary)
-                        'similarity_method' : method to measure the similarity between regions
-                                            'cie2000' (recommended) is based on LAB colors
-                                            'coloredge' mixes edge features with LAB features,
-                                            'edges' uses only edge features
-                        'stop_criterion' : Value to stop removing edges within a subgraph of the graph
-                                        representation of the image. Maximum intraregion dissimilarity variation.
-                                        A value greater than stop_criterion indicates that there are edges linking
-                                        dissimilar vertices. When value < stop_criterion, the elements of the subgraph
-                                        can be merged together to form an homogeneous region.
-    :param tf_model : Path of tensorflow model to be used for digit recognition.
-    :param show_plots: Boolean. To save intermediate plots of polygons and boxes (default=True)
-    :param evaluation: Boolean. To evaluate the results (parcel extraction and digit recognition). A ground truth must
-                        exist in data/data_evaluation and should me named as nameCadasterFile_{parcels, digits}_gt.jpg
-    :param debug: Boolean. Saves the graph and useful variable after each step to ease debug.
+    :param tf_model_dir : Path of tensorflow model to be used for digit recognition.
+    :param params : All the parameters needed (see helpers.config.Params)
     """
-
-    # Session config for tensorflow
-    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_device
-    config_sess = tf.ConfigProto()
-    config_sess.gpu_options.per_process_gpu_memory_fraction = 0.5
-
-    stop_criterion = params_merge['stop_criterion']
-    similarity_method = params_merge['similarity_method']
-    assert similarity_method in ['cie2000', 'coloredge', 'edges']
-
-    filename_classifier = 'data/svm_classifier.pkl'
-    tf_model_class_dir = 'data/models/classification'
-
-    # Create output folder if it does not exist
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
-    # Evaluation flag, check if ground truth files exist
-    if evaluation:
-        path_eval_split = os.path.split(filename_cadaster_img)
-        # Get filename labelled parcels
-        filename = '{}_labelled_parcels_gt.jpg'.format(path_eval_split[1].split('.')[0])
-        groundtruth_parcels_filename = os.path.join(path_eval_split[0], filename)
-
-        # Get filename ground truth labelled digits
-        filename = '{}_digits_label_gt.png'.format(path_eval_split[1].split('.')[0])
-        groundtruth_labels_digits_filename = os.path.join(path_eval_split[0], filename)
-
-        if os.path.exists(groundtruth_parcels_filename) and os.path.exists(groundtruth_labels_digits_filename):
-            pass
-        else:
-            evaluation = False
-            print('** ! WARNING ! : {} and/or {} ground truth file do not exist. Cannot perform evaluation'.format(
-                groundtruth_parcels_filename, groundtruth_labels_digits_filename))
-
-    # Debug flag, create directory if it doesn't exist already
-    debug_folder = os.path.join(output_path, 'debug_files')
-    if debug:
-        if not os.path.exists(debug_folder):
-            os.makedirs(debug_folder)
 
     # Time process
     t0 = time.time()
@@ -101,88 +43,73 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # FILTERING
     #
     print('-- FILTERING --')
-    # ---------
     img_filt = image_filtering(img)
 
     #
     # SLIC
     #
     print('-- SLIC --')
-    # -----
-    original_segments = compute_slic(helpers.bgr2rgb(img_filt), params_slic)
+    original_segments = compute_slic(helpers.bgr2rgb(img_filt), parameters)
 
     #
     # FEATURE EXTRACTION
     #
     print('-- FEATURE EXTRACTION --')
-    # ------------------
-    list_dict_features = ['Lab', 'laplacian', 'frangi', 'RGB']
-
-    # Saving for debug proposes
-    savefile_feats = os.path.join(debug_folder, 'feats.pkl')
     try:
 
-        with open(savefile_feats, 'rb') as handle:
+        with open(params.saving_filename_feats, 'rb') as handle:
             dict_features = pickle.load(handle)
-        print('\t Debug Mode : {} file loaded'.format(os.path.split(savefile_feats)[-1]))
-
+        print('\t Debug Mode : {} file loaded'.format(os.path.split(params.saving_filename_feats)[-1]))
     except FileNotFoundError:
+        dict_features = features_extraction(img_filt, params.list_features)
 
-        dict_features = features_extraction(img_filt, list_dict_features)
-        if debug:
-            with open(savefile_feats, 'wb') as handle:
+        if params.debug_flag:
+            with open(params.saving_filename_feats, 'wb') as handle:
                 pickle.dump(dict_features, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print('\t Debug Mode : {} file saved'.format(os.path.split(savefile_feats)[-1]))
+            print('\t Debug Mode : {} file saved'.format(os.path.split(params.saving_filename_feats)[-1]))
 
     #
     # GRAPHS AND MERGING
     #
     print('-- GRAPHS AND MERGING --')
-    # ------------------
-
-    savefile_graph = os.path.join(debug_folder, 'graph.pkl')
-    savefile_nsegments = os.path.join(debug_folder, 'nsegments.pkl')
     try:
-        with open(savefile_graph, 'rb') as handle:
+        with open(params.saving_filename_graph, 'rb') as handle:
             G = pickle.load(handle)
-        with open(savefile_nsegments, 'rb') as handle:
+        with open(params.saving_filename_nsegments, 'rb') as handle:
             nsegments = pickle.load(handle)
-        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(savefile_graph)[-1],
-                                                              os.path.split(savefile_nsegments)[-1]))
-
+        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(params.saving_filename_graph)[-1],
+                                                              os.path.split(params.saving_filename_nsegments)[-1]))
     except FileNotFoundError:
         # Create G graph
         G = nx.Graph()
         nsegments = original_segments.copy()
 
-        G = graph.edge_cut_minimize_std(G, nsegments, dict_features, similarity_method,
-                                        mst=True, stop_std_val=stop_criterion)
+        G = graph.edge_cut_minimize_std(G, nsegments, dict_features, params.merging_similarity_method,
+                                        mst=True, stop_std_val=params.merging_stop_criterion)
 
-        if debug:
-            with open(savefile_graph, 'wb') as handle:
+        if params.debug_flag:
+            with open(params.saving_filename_graph, 'wb') as handle:
                 pickle.dump(G, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            with open(savefile_nsegments, 'wb') as handle:
+            with open(params.saving_filename_nsegments, 'wb') as handle:
                 pickle.dump(nsegments, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(savefile_graph)[-1],
-                                                                 os.path.split(savefile_nsegments)[-1]))
+            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(params.saving_filename_graph)[-1],
+                                                                 os.path.split(params.saving_filename_nsegments)[-1]))
 
     # Keep track of correspondences between 'original superpiels' and merged ones
     dic_corresp_label = {sp: np.int(np.unique(nsegments[original_segments == sp]))
                          for sp in np.unique(original_segments)}
 
-    if show_plots:
-        namefile = os.path.join(output_path, 'sp_merged.jpg')
-        helpers.show_superpixels(img_filt, nsegments, namefile)
+    if params.show_plots:
+        helpers.show_superpixels(img_filt, nsegments, params.plots_filename_superpixels)
 
     #
     # CLASSIFICATION
     #
     print('-- CLASSIFICATION --')
-    # ---------------
     # Labels : 0 = Background, 1 = Text, 2 = Contours
 
     # Loading fitted classifier
-    with open(filename_classifier, 'rb') as handle:
+    with open(params.classifier_filename, 'rb') as handle:
         classifications_infos = pickle.load(handle)
 
     clf_params = classifications_infos['parameters']
@@ -197,71 +124,63 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
     # PARCELS AND POLYGONS
     #
     print('-- PARCELS AND POLYGONS --')
-    # --------------------
+
     min_size_region = 3  # Regions should be formed at least of min_size_region merged original superpixels
-    bgclass = 0  # Label of 'background' class
+    # bgclass = 0  # Label of 'background' class
 
     # Find nodes that are classified as background class and that are bigger than min_size_region
-    bg_nodes_class = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == bgclass]
-    bg_nodes_nsp = [tn for tn in bg_nodes_class if 'n_superpix' in G.node[tn]
-                    and G.node[tn]['n_superpix'] > min_size_region]
+    bg_nodes = [tn for tn in G.nodes() if 'class' in G.node[tn] and G.node[tn]['class'] == params.label_background_class]
+    background_class_nodes = [tn for tn in bg_nodes if 'n_superpix' in G.node[tn]
+                              and G.node[tn]['n_superpix'] > min_size_region]
 
     # Find parcels and export polygons in geoJSON format
     ksize_flooding = 2
 
-    savefile_listpoly = os.path.join(debug_folder, 'listpoly.pkl')
-    savefile_dicpoly = os.path.join(debug_folder, 'dicpoly.pkl')
     try:
-        with open(savefile_listpoly, 'rb') as handle:
+        with open(params.saving_filename_listpoly, 'rb') as handle:
             listFeatPolygon = pickle.load(handle)
-        with open(savefile_dicpoly, 'rb') as handle:
+        with open(params.saving_filename_dicpoly, 'rb') as handle:
             dic_polygon = pickle.load(handle)
-        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(savefile_listpoly)[-1],
-                                                              os.path.split(savefile_dicpoly)[-1]))
+        print('\t Debug Mode : {} and {} files loaded'.format(os.path.split(params.saving_filename_listpoly)[-1],
+                                                              os.path.split(params.saving_filename_dicpoly)[-1]))
 
     except FileNotFoundError:
+        # Get geometric transform
+        ds = gdal.Open(filename_cadaster_img)
+        geo_transform = ds.GetGeoTransform()
+
         listFeatPolygon, dic_polygon = \
-            polygons.find_parcels(bg_nodes_nsp, nsegments, dict_features['frangi'],
-                                  ksize_flooding, filename_cadaster_img)
-        if debug:
-            with open(savefile_listpoly, 'wb') as handle:
+            polygons.find_parcels(background_class_nodes, nsegments, dict_features['frangi'],
+                                  ksize_flooding, geo_transform=geo_transform,
+                                  approximation_epsilon=params.polygon_approx_epsilon)
+        if params.debug_flag:
+            with open(params.saving_filename_listpoly, 'wb') as handle:
                 pickle.dump(listFeatPolygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            with open(savefile_dicpoly, 'wb') as handle:
+            with open(params.saving_filename_dicpoly, 'wb') as handle:
                 pickle.dump(dic_polygon, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(savefile_listpoly)[-1],
-                                                                 os.path.split(savefile_dicpoly)[-1]))
+            print('\t Debug Mode : {} and {} files saved'.format(os.path.split(params.saving_filename_listpoly)[-1],
+                                                                 os.path.split(params.saving_filename_dicpoly)[-1]))
 
     #
     # >>>>>>> HERE POLYGONS SHOULD BE SORTED BY AREA (BIGGER FIRST)
     #       so that when they are exported to VTM-Canvas, if a small parcel is situated within a bigger parcel,
     #       the small one is on top and is accessible by clicking
 
-    if evaluation:
+    if params.evaluate:
         # Evaluate
-        iou_thresh_parcels = 0.7
         results_evaluation_parcels = \
-            polygons.global_evaluation_parcels(dic_polygon, groundtruth_parcels_filename,
-                                               iou_thresh_parcels=iou_thresh_parcels)
+            polygons.global_evaluation_parcels(dic_polygon, params.groundtruth_parcels_filename,
+                                               iou_thresh_parcels=params.iou_threshold_parcels)
 
     #
     # Export geoJSON
-    filename_geoJson = os.path.join(output_path, 'parcels_polygons.geojson')
-    polygons.savePolygons(listFeatPolygon, filename_geoJson, filename_cadaster_img)
+    polygons.savePolygons(listFeatPolygon, params.filename_geojson, filename_cadaster_img)
 
-    if show_plots:
+    if params.show_plots:
         # Show ridge image for flooding
         ridge2flood = polygons.clean_image_ridge(dict_features['frangi'], ksize_flooding)
-        filename_ridge = os.path.join(output_path, 'ridges_to_flood.jpg')
-        cv2.imwrite(filename_ridge, ridge2flood)
-
-        # Show Polygons
-        filename_polygons = os.path.join(output_path, 'polygons.jpg')
-        helpers.show_polygons(img_filt, dic_polygon, (6, 6, 133), filename_polygons)
-
-    # Create directory for cropped polygons
-    crop_poly_dirpath = os.path.join(output_path, 'cropped_polygons')
-    if not os.path.exists(crop_poly_dirpath):
-        os.makedirs(crop_poly_dirpath)
+        cv2.imwrite(params.plots_filename_ridge, ridge2flood)
+        helpers.show_polygons(img_filt, dic_polygon, color=(6, 6, 133), filename=params.plots_filename_polygons)
 
     # Give one unique ID for each polygon, crop each one and save it independently
     # Image with labeled polygons
@@ -275,25 +194,23 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             # >>>>>>>> HERE USE UUID AS LABEL
             # polygons_labels[mask_polygon_to_fill > 0] = uid.int # then do uuid.UUID(int=label) to find uuid
 
-            if show_plots:
+            if params.show_plots:
                 # Crop polygon image and save it
                 cropped_polygon_image = polygons.crop_polygon(img_filt, poly)
-                filename_cropped_polygon = os.path.join(crop_poly_dirpath, '{}.jpg'.format(uid))
+                filename_cropped_polygon = os.path.join(params.dir_cropped_polygons, '{}.jpg'.format(uid))
                 cv2.imwrite(filename_cropped_polygon, cropped_polygon_image)
 
     #
     # TEXT PIXELS
     #
     print('__TEXT PIXELS__')
-    # ------------
 
     # Saving for debug
-    savefile_boxes = os.path.join(debug_folder, 'boxes.pkl')
     try:
 
-        with open(savefile_boxes, 'rb') as handle:
+        with open(params.saving_filename_boxes, 'rb') as handle:
             final_boxes = pickle.load(handle)
-        print('\t Debug Mode : {} file loaded'.format(os.path.split(savefile_boxes)[-1]))
+        print('\t Debug Mode : {} file loaded'.format(os.path.split(params.saving_filename_boxes)[-1]))
 
     except FileNotFoundError:
         # Erode binary version of polygons to avoid touching boundaries to have a 'map'
@@ -367,16 +284,14 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         O.add_edges_from(edges)
 
         # Show class
-        if show_plots:
-            namefile_class = os.path.join(output_path, 'predicted3class.jpg')
-            helpers.show_class(nsegments, G, namefile_class)
+        if params.show_plots:
+            helpers.show_class(nsegments, G, params.plots_filename_class)
 
         #
         #
         # BOUNDING BOXES
         #
         print('__BOUNDING BOXES__')
-        # ---------------
 
         # Build text graphs
         # -----------------
@@ -439,28 +354,21 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         final_boxes = [b for b in final_boxes if b not in boxes_false]
 
         # SHOW BOXES
-        if show_plots:
+        if params.show_plots:
             # All
             img_allBox = img_filt.copy()
             helpers.show_boxes(img_allBox, final_boxes, (0, 255, 0))
             helpers.show_boxes(img_allBox, boxes_false, (0, 0, 255))
-            cv2.imwrite(os.path.join(output_path, 'allBox.jpg'), img_allBox)
+            cv2.imwrite(params.plots_filename_allbox, img_allBox)
 
             # Final boxes
-            filename_finalBox = os.path.join(output_path, 'finalBox.jpg')
-            helpers.show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), filename_finalBox)
+            helpers.show_boxes(img_filt.copy(), final_boxes, (0, 255, 0), params.plots_filename_finalbox)
 
         #
         #
         # PROCESS BOX (ROTATE, ...), PREDICT NUMBER AND SAVE IT
         #
         print('__PROCESS BOX (ID RECOGNITION)__')
-        # -------------------------------------
-        # Create directory to save digits image
-        path_digits = os.path.join(output_path, 'digits')
-        if not os.path.exists(path_digits):
-            os.makedirs(path_digits)
-
         # Restore model and then predict one by one the images -> not optimal (batch instead)!!
         sess = tf.Session()
 
@@ -478,11 +386,6 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             x, y, w, h = cv2.boundingRect(bounding_rect_coords)
             crop_img = img_filt[y:y+h, x:x+w].copy()
             rotated_crop, rot_mat = helpers.rotate_image_with_mat(crop_img.copy(), angle)
-
-            # cv2.imwrite(os.path.join(path_digits, '{}_crop.jpg'.format(box.box_id)),
-            #             crop_img)
-            # cv2.imwrite(os.path.join(path_digits, '{}_rot.jpg'.format(box.box_id)),
-            #             rotated_crop)
 
             # Get the box points with the new rotated coordinates
             box_pts_offset_crop = box.original_box_pts.copy()
@@ -515,8 +418,8 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
             # Get 'words' and 'difference_logprob'
             predictions = sess.run(output_dict, feed_dict={input_dict['images']: crop_number_formatted})
 
-            number_predicted = predictions['words'].decode('utf-8')
-            confidence = predictions['difference_logprob'][0]
+            number_predicted = predictions['words'][0].decode('utf8')
+            confidence = predictions['score'][0]
 
             try:
                 box.prediction_number = tuple([number_predicted,
@@ -529,13 +432,13 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
 
             # Save in JSON file
             data = OrderedDict([('number', number_predicted), ('confidence', str(confidence))])
-            filename_json = os.path.join(path_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
+            filename_json = os.path.join(params.dir_digits, '{}_{}_json.txt'.format(box.prediction_number, box.box_id))
             with open(filename_json, 'w') as fjson:
                 json.dump(data, fjson)
 
             # Save cropped image
-            if show_plots:
-                cv2.imwrite(os.path.join(path_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
+            if params.show_plots:
+                cv2.imwrite(os.path.join(params.dir_digits, '{}_{}_original.jpg'.format(box.prediction_number, box.box_id)),
                             crop_number)
 
         # Don't forget to close session
@@ -544,52 +447,42 @@ def segment_cadaster(filename_cadaster_img, output_path, params_slic, params_mer
         # Remove empty items from list
         final_boxes = [b for b in final_boxes if b]
 
-        if debug:
-            with open(savefile_boxes, 'wb') as handle:
+        if params.debug_flag:
+            with open(params.saving_filename_boxes, 'wb') as handle:
                 pickle.dump(final_boxes, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            print('\t Debug Mode : {} file saved'.format(os.path.split(savefile_boxes)[-1]))
+            print('\t Debug Mode : {} file saved'.format(os.path.split(params.saving_filename_boxes)[-1]))
 
     #
     # Evaluation of predicted digits
-    if evaluation:
+    if params.evaluate:
         # -- IOU evaluation
-        iou_thresh_digits = 0.5
-        print('-- Evaluation IoU ({})--'.format(iou_thresh_digits))
-        results_localization_iou, results_recognition_iou, box_prediction_list_iou \
-            = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                                          thresh=iou_thresh_digits, use_iou=True, printing=True)
+        print('-- Evaluation IoU ({})--'.format(params.iou_threshold_digits))
+        results_localization_iou, results_recognition_iou, \
+        boxes_predict_list_correct_located_iou, boxes_predict_list_incorrect_located_iou \
+            = txt.global_digit_evaluation(final_boxes, params.groundtruth_labels_digits_filename,
+                                          thresh=params.iou_threshold_digits, use_iou=True, printing=True)
         # -- inter evaluation
-        inter_thresh_digits = 0.8
-        print('-- Evaluation INTER -- ({})'.format(inter_thresh_digits))
+        print('-- Evaluation INTER -- ({})'.format(params.inter_threshold_digits))
         results_localization_inter, results_recognition_inter, \
-            boxes_predict_list_correct_located, boxes_predict_list_incorrect_located \
-            = txt.global_digit_evaluation(final_boxes, groundtruth_labels_digits_filename,
-                                          thresh=inter_thresh_digits, use_iou=False, printing=True)
+            boxes_predict_list_correct_located_inter, boxes_predict_list_incorrect_located_inter \
+            = txt.global_digit_evaluation(final_boxes, params.groundtruth_labels_digits_filename,
+                                          thresh=params.inter_threshold_digits, use_iou=False, printing=True)
 
         results_digits_eval = {'iou': (results_localization_iou, results_recognition_iou),
                                'inter': (results_localization_inter, results_recognition_inter)}
     #
     # LOG FILE
-    #
-    print('-- LOG FILE --')
     # ---------
+    print('-- LOG FILE --')
     # Write Log file
     elapsed_time = time.time() - t0
-    log_filename = os.path.join(output_path, 'log.txt')
 
-    if evaluation:
-        helpers.write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
-                               classifier_filename=filename_classifier, size_image=img_filt.shape,
-                               params_slic=params_slic, list_dict_features=list_dict_features,
-                               similarity_method=similarity_method, stop_criterion=stop_criterion,
-                               digit_tf_model=tf_model_dir, results_parcels_eval=results_evaluation_parcels,
+    if params.evaluate:
+        helpers.write_log_file(params, elapsed_time=elapsed_time,
+                               results_parcels_eval=results_evaluation_parcels,
                                results_digits_eval=results_digits_eval)
     else:
-        helpers.write_log_file(log_filename, elapsed_time=elapsed_time, cadaster_filename=filename_cadaster_img,
-                               classifier_filename=filename_classifier, size_image=img_filt.shape,
-                               params_slic=params_slic, list_dict_features=list_dict_features,
-                               similarity_method=similarity_method, stop_criterion=stop_criterion,
-                               digit_tf_model=tf_model_dir)
+        helpers.write_log_file(params, elapsed_time=elapsed_time)
 
     print('Cadaster image processed with success!')
 # ----------------------------------------------------------------------------------------
@@ -612,11 +505,6 @@ if __name__ == '__main__':
                         default='data/svm_classifier.pkl')
     parser.add_argument('-tf', '--tensorflow_model', help='Path of the tensorflow model for digit recognition',
                         default='data/models/crnn_numbers')
-    parser.add_argument('-sp', '--sp_percent', type=float, help='The number of superpixels for '
-                                                                'SLIC algorithm using a percentage of the total number '
-                                                                'of pixels. Give a percentage between 0 and 1.'
-                                                                'Default : 0.01',
-                        default=0.01)
     parser.add_argument('-p', '--plot', type=bool, help='Show plots (boolean). Default : 1', default=True)
     parser.add_argument('-ev', '--evaluation', type=bool, help='To enable evaluation of parcels extraction and digit '
                                                                'segmentation (only possible if a ground-truth is '
@@ -625,17 +513,25 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--debug', type=bool, help='Debug flag. 1 to activate. Default : 0', default=False)
     parser.add_argument('-g', '--gpu', type=str, help='GPU device, ('' For CPU)', default='')
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
-    # Directory and files paths
-    output_path = args.output_path
-    # filename_classifier = args.classifier
+    parameters = Params(input_filenames=args.get('cadaster_img'),
+                        output_dir=args.get('output_path'),
+                        tf_model_dir=args.get('tensorflow_model'),
+                        show_plots=args.get('plot'),
+                        evaluate=args.get('evaluation'),
+                        debug=args.get('debug'),
+                        gpu=args.get('gpu'),
+                        classifier_filename='data/svm_classifier.pkl',
+                        list_features=['Lab', 'laplacian', 'frangi', 'RGB'],
+                        iou_threshold_parcels=0.7,
+                        iou_threshold_digits=0.5,
+                        inter_threshold_digits=0.8)
 
-    # Params merging and slic
-    params_merge = {'similarity_method': 'cie2000', 'stop_criterion': 0.3}
-    params_slic = {'percent': args.sp_percent, 'numCompact': 25, 'sigma': 2,
-                   'mode': 'RGB'}
+    # Session config for tensorflow
+    os.environ['CUDA_VISIBLE_DEVICES'] = parameters.gpu
+    config_sess = tf.ConfigProto()
+    config_sess.gpu_options.per_process_gpu_memory_fraction = 0.5
 
     # Launch segmentation
-    segment_cadaster(args.cadaster_img, output_path, params_slic, params_merge, tf_model_dir=args.tensorflow_model,
-                     show_plots=args.plot, evaluation=args.evaluation, debug=args.debug, gpu_device=args.gpu)
+    segment_cadaster(parameters.input_filenames, parameters.tf_model_dir, parameters)

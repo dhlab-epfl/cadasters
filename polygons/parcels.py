@@ -1,12 +1,16 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 import cv2
 from .flooding import Polygon2geoJSON
 from .flooding import clean_image_ridge
 from geojson import Feature, Polygon
-from osgeo import gdal
+from typing import List
 
 
-def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_flooding, img_filename):
+def find_parcels(nodes_bg2flood, merged_segments: np.array, ridge_image: np.array, ksize_kernel_flooding: int,
+                 geo_transform: tuple) -> (List[Feature], dict):
     """
     Given the possible 'background' regions, finds the parcels by flooding the regions
     and returns the found polygons as GEOJSON file and opencv format. Also matches an uuid
@@ -16,6 +20,7 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
     :param merged_segments: map of segments/regions
     :param ridge_image: ridge image (frangi feature)
     :param ksize_kernel_flooding: size of kernel to dilate and erode ridge image (to precporcess it)
+    :param geo_transform: geo transformation obtained with gdal
     :return: listFeatPolygon: list of Polygon in GeoJSON format
             dic_polygon: dictionary with node graphs as keys and
                         tuple of (uuid, list of polygons in cv2 format) as values
@@ -32,8 +37,8 @@ def find_parcels(nodes_bg2flood, merged_segments, ridge_image, ksize_kernel_floo
     #     Xp = geo_transform[0] + row*geo_transform[1] + col*geo_transform[2];
     #     Yp = geo_transform[3] + row*geo_transform[4] + col*geo_transform[5];
 
-    ds = gdal.Open(img_filename)
-    geo_transform = ds.GetGeoTransform()
+    # ds = gdal.Open(img_filename)
+    # geo_transform = ds.GetGeoTransform()
 
     # List to be updated during loop
     listFeatPolygon = list()

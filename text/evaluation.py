@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import cv2
 import numpy as np
 from collections import Counter
@@ -85,7 +88,7 @@ def get_labelled_digits_matrix(filename_digits_labelled: str) -> np.array:
 
 def evaluation_digit_transcription(label_matrix: np.array, list_extracted_boxes: list,
                                    result_transcription: ResultsTranscription,
-                                   incorrect_boxes: list()) -> list():
+                                   incorrect_boxes: list) -> list:
     """
 
     :param label_matrix:
@@ -234,9 +237,9 @@ def print_evaluation_digits(results_localization: ResultsLocalization, results_r
     print('\t Character Error Rate (CER) : {}'.format(results_recognition.cer))
 
 
-def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str, thresh=0.5, use_iou=False,
-                            printing=True) -> (ResultsLocalization, ResultsTranscription,
-                                               BoxLabelPrediction, BoxLabelPrediction):
+def global_digit_evaluation(final_boxes: list, groundtruth_labels_digits_filename: str, thresh: float=0.5,
+                            use_iou: bool=False, printing: bool=True) -> (ResultsLocalization, ResultsTranscription,
+                                                                    BoxLabelPrediction, BoxLabelPrediction):
     """
 
     :param final_boxes:

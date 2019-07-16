@@ -1,9 +1,10 @@
 import numpy as np
 from classification import construct_feature_vector_classification
+from typing import List
 
 
-def node_classifier(graph, dict_feature, list_features, map_segments,
-                    classifier, normalize_method=None, graph_nodes=-1, new_attribute_name='class'):
+def node_classifier(graph, dict_feature: dict, list_features: List[str], map_segments: np.array,
+                    classifier, normalize_method: bool=None, graph_nodes=-1, new_attribute_name: str='class'):
     """
     Classifies the graph's nodes
 

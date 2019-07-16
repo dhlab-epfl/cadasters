@@ -1,10 +1,13 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 import sys
 from colormath.color_objects import LabColor
 from colormath.color_diff import delta_e_cie2000 as cie2000
 
 
-def measure_similarity(graph, method='cie2000', exponential=None):
+def measure_similarity(graph, method: str='cie2000', exponential=None):
     """
     Measures similarity (or "distance") between nodes connected by an edge. This value is the "weight" of the edge.
     :param graph: Graph to calculate the edges

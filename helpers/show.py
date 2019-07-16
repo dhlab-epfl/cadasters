@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 import cv2
 from skimage.segmentation import mark_boundaries

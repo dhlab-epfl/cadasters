@@ -1,5 +1,10 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
 
-def contract_nodes(G, nodes, new_node, attr_dict=None, **attr):
+from typing import List
+
+
+def contract_nodes(G, nodes: List[int], new_node: int, attr_dict: dict=None, **attr):
     """
     Contracts the edges of the nodes in the set "nodes". Keeps the relations of edges but the nodes'
     attributes need to be computed again (since their value changes)

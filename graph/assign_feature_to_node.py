@@ -1,18 +1,21 @@
+#!/usr/bin/env python
+__author__ = 'solivr'
+
 import numpy as np
 
 
-def assign_feature_to_node(graph, node_lbl, list_segments, dict_features):
+def assign_feature_to_node(graph, node_lbl: int, slic_segments: np.array, dict_features: dict) -> None:
     """
     To each node of the graph, assigns its characteristics (features) that have been previously
     calculated for all images and stored in dict_features
     :param graph: Graph of superpixels/regions
     :param node_lbl: label of the node
-    :param list_segments: map of labelled segments
+    :param slic_segments: map of labelled segments
     :param dict_features: dictionary containing all the computed features
     """
 
     # Pixels that belong to the node
-    pixLbl = list_segments == node_lbl
+    pixLbl = slic_segments == node_lbl
 
     # Features
     # Lab

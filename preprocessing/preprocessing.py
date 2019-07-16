@@ -5,7 +5,7 @@ from helpers import rgb2gray, bgr2rgb
 from skimage import color
 
 
-def image_filtering(img, filters='nlmeans'):
+def image_filtering(img: np.array, filters: str='nlmeans') -> np.array:
     """
     Filters the input image to remove the noise (median smoothing, gaussain smoothing or
     non local means denoising)
@@ -33,7 +33,7 @@ def image_filtering(img, filters='nlmeans'):
     return img_filt
 
 
-def features_extraction(img_bgr, list_features):
+def features_extraction(img_bgr: np.array, list_features: list) -> dict:
     """
     Extracts features listed in list of image and save it in a dictionnary
     :param img_bgr: image in BGR format
@@ -47,7 +47,8 @@ def features_extraction(img_bgr, list_features):
             'RGB' : Image in RGB color space
     :return: dict_features is a dictionnary containing all the features computed
     """
-    img_rgb = bgr2rgb(img_bgr) # <<<<<<<<<<< CHANGE THIS (OUTSIDE FUNCTION)
+    # TODO : Be more consistent, either use opencv or skimage
+    img_rgb = bgr2rgb(img_bgr)
 
     # Convert BGR to L*a*b* color space and grayscale
     img_Lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)

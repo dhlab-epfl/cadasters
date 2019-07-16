@@ -11,9 +11,9 @@ class Box:
         # Counter counts the number of boxes that have been created and assigns an unique id to each new created box
         self.box_id = Box.box_counter
         # current 4 corner points of the box, ordered clockwise
-        self.box_pts = self.order_pts_clockwise(box_pts)
+        self.box_pts = self._order_pts_clockwise(box_pts)
         # Points of the original box (before any transformation)
-        self.original_box_pts = self.order_pts_clockwise(box_pts)
+        self.original_box_pts = self._order_pts_clockwise(box_pts)
         # Contour of the elements inside the box
         self.cnt = cnt
         self.lbl_polygon = lbl_polygon
@@ -48,12 +48,12 @@ class Box:
         defects = cv2.convexityDefects(self.cnt,hull)
         return np.float32(defects[:, 0, -1])/256.0  # Take only defect distances and change it to floating point values
 
-    def order_pts_clockwise(self, pts):
+    def _order_pts_clockwise(self, pts):
         """
         order : top left, top right, bottom right, bottom left
         """
         # sort the points based on their x-coordinates
-        xSorted = pts[np.argsort(pts[:,0]), :]
+        xSorted = pts[np.argsort(pts[:, 0]), :]
         # grab the left-most and right-most points from the sorted x-coordinate points
         leftMost = xSorted[:2, :]
         rightMost = xSorted[2:, :]
