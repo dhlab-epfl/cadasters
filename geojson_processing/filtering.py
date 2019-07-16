@@ -1,4 +1,4 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
@@ -7,7 +7,7 @@ from shapely.geometry import shape
 import shapely
 import geojson
 import json
-***REMOVED***
+import os
 import re
 import pandas as pd
 import geopandas as gpd
@@ -15,13 +15,13 @@ import numpy as np
 
 
 def get_valid_shapes(features: List[Dict], verbose: bool=False) -> List[Dict]:
-***REMOVED***"
+    """
      Remove invalid shapes from a list of GeometryFeatures.
 
     :param features: list of geojson Feature type objects (shapely.geometry.shape)
     :param verbose: if True will print the invalid Features
     :return: the filtered ``features`` vector
-***REMOVED***"
+    """
 
     valid_features = list()
     invalid_count = 0
@@ -33,27 +33,27 @@ def get_valid_shapes(features: List[Dict], verbose: bool=False) -> List[Dict]:
             else:
                 invalid_count += 1
                 if verbose:
-                    print('- Shape is not valid. (counter invalid: ***REMOVED******REMOVED***)'.format(invalid_count))
+                    print('- Shape is not valid. (counter invalid: {})'.format(invalid_count))
                     print(feature)
         except ValueError:
             invalid_count += 1
             if verbose:
-                print(' - Geojson shape is not readable. (counter invalid: ***REMOVED******REMOVED***)'.format(invalid_count))
+                print(' - Geojson shape is not readable. (counter invalid: {})'.format(invalid_count))
                 print(feature)
 
-    print('   Found ***REMOVED******REMOVED*** invalid shapes.'.format(invalid_count))
+    print('   Found {} invalid shapes.'.format(invalid_count))
 
     return valid_features
 
 
 def clean_and_export(filename_original: str, export_dir: str) -> None:
-***REMOVED***"
+    """
     Remove invalid shapes from geojsonfile and exports a nes geojson file
 
     :param filename_original: filename of the original geojson file
     :param export_dir: directory to export the cleaned geojson files
     :return:
-***REMOVED***"
+    """
 
     # Load the geojson file content
     with open(filename_original, 'r') as f:
@@ -71,12 +71,12 @@ def clean_and_export(filename_original: str, export_dir: str) -> None:
 
 
 def batch_clean_and_export(list_filenames: List[str], export_dir: str):
-***REMOVED***"
+    """
 
     :param list_filenames: list of filename of the original geojson files
     :param export_dir: directory to export the cleaned geojson files
     :return:
-***REMOVED***"
+    """
 
     if os.path.isdir(export_dir):
         print('Export directory already exists')
@@ -84,7 +84,7 @@ def batch_clean_and_export(list_filenames: List[str], export_dir: str):
         os.makedirs(export_dir)
 
     for filename in list_filenames:
-        print('Processing ***REMOVED******REMOVED***'.format(filename))
+        print('Processing {}'.format(filename))
         clean_and_export(filename, export_dir)
 
 
@@ -139,7 +139,7 @@ def clean_manually_annotated_parcels(geodataframe_annotated: gpd.GeoDataFrame) -
 
     # Find invalid shapes in groundtruth and remove them also
     invalid_polygons = geodataframe_annotated[~geodataframe_annotated.geometry.apply(lambda s: s.is_valid)]
-    print("Removed ***REMOVED******REMOVED*** invalid polygons.".format(len(invalid_polygons)))
+    print("Removed {} invalid polygons.".format(len(invalid_polygons)))
 
     gdf_corrected = geodataframe_annotated.drop(index=invalid_polygons.index, axis=0)
 

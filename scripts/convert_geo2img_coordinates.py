@@ -1,9 +1,9 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
 import click
-***REMOVED***
+from tqdm import tqdm
 from typing import List
 from geojson_processing.geo_info import offset_geojson_file
 
@@ -16,5 +16,5 @@ def convert_coords_from_geo_to_img(filenames: List[str], geotif_directory: str, 
         offset_geojson_file(filename, geotif_directory, output_dir)
 
 
-***REMOVED***
+if __name__ == '__main__':
     convert_coords_from_geo_to_img()

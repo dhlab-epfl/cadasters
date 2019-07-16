@@ -1,4 +1,4 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from typing import Union
-***REMOVED***
+from tqdm import tqdm
 
 
 def find_transcriptions_outliers(geodataframe_with_transcriptions: Union[pd.DataFrame, gpd.GeoDataFrame],
                                  n_neighbors: int=6, tolerance: int=10, return_median: bool=False):
-***REMOVED***"
+    """
 
     :param geodataframe_with_transcriptions: dataframe that contains polygons with transcriptions
     :param n_neighbors: number of neighbors to consider for the nearest neighbor algorithm
@@ -20,7 +20,7 @@ def find_transcriptions_outliers(geodataframe_with_transcriptions: Union[pd.Data
     median of the nearest neighbors
     :param return_median: add a column ``median_transcription`` to the returned dataframe
     :return: the updated geodataframe with True/False values in ``is_outlier`` column
-***REMOVED***"
+    """
 
     geodataframe_with_transcriptions['is_outlier'] = pd.Series()
     if return_median:

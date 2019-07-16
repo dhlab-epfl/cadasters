@@ -1,16 +1,16 @@
-***REMOVED***
-***REMOVED***
+#!/usr/bin/env python
+__author__ = 'solivr'
 
 from scipy.misc import imread
 import numpy as np
 import cv2
 from collections import Counter
-***REMOVED***
+import os
 import datetime
 import json
 from typing import List
 from .utils import MyPolygon, crop_with_margin
-***REMOVED***
+from tqdm import tqdm
 import Levenshtein
 
 
@@ -151,13 +151,13 @@ class LabelErrorType:
 
 
 def make_mask_pointPolyTest(mask_shape, contours, distance=False):
-***REMOVED***"
+    """
     Computes the mask indicating if a pixel is within the polygon given by contours
     :param mask_shape: shape of the mask to compute
     :param contours: the contours of the polygons
     :param distance: to also compute the distance between a point and the closest contour (default=False)
     :return: mask
-***REMOVED***"
+    """
     mask = np.zeros(mask_shape[:2], dtype=bool)
     xx, yy = np.mgrid[0:mask_shape[1], 0:mask_shape[0]]
     list_points = [tuple([xx.flatten()[i], yy.flatten()[i]]) for i in range(len(xx.flatten()))]
@@ -171,13 +171,13 @@ def make_mask_pointPolyTest(mask_shape, contours, distance=False):
 
 
 # def minimum_edit_distance(s1, s2):
-# ***REMOVED***"
+#     """
 #     Computes the Levenshtein distence between 2 strings s1, s2
 #     Taken from https://rosettacode.org/wiki/Levenshtein_distance#Python
 #     :param s1:
 #     :param s2:
 #     :return: Levenshtein distance
-# ***REMOVED***"
+#     """
 #     if len(s1) > len(s2):
 #         s1, s2 = s2, s1
 #     distances = range(len(s1) + 1)
@@ -195,13 +195,13 @@ def make_mask_pointPolyTest(mask_shape, contours, distance=False):
 
 
 def get_labelled_digits_matrix(groundtruth_digits_filename: str) -> np.array:
-***REMOVED***"
+    """
         From the RGB image (h x w x 3), reconstruct the matrix of labels of the digits for evaluation
         :param groundtruth_digits_filename: filename of labelled digit image
         :return: labels_matrix : matrix  of size (h x w) and type int of the digit labels
-    ***REMOVED***"
+        """
     assert os.path.isfile(groundtruth_digits_filename), \
-        'Groundtruth file not found at ***REMOVED******REMOVED***'.format(groundtruth_digits_filename)
+        'Groundtruth file not found at {}'.format(groundtruth_digits_filename)
     # Load image
     img_digit_labels = imread(groundtruth_digits_filename)
     img_digit_labels_bin = np.uint8(255 * (imread(groundtruth_digits_filename, mode='L') > 0))
@@ -237,7 +237,7 @@ def get_labelled_digits_matrix(groundtruth_digits_filename: str) -> np.array:
 
 def get_labelled_parcels_matrix(groundtruth_parcels_filename: str) -> np.array:
     assert os.path.isfile(groundtruth_parcels_filename), \
-        'Groundtruth file not found at ***REMOVED******REMOVED***'.format(groundtruth_parcels_filename)
+        'Groundtruth file not found at {}'.format(groundtruth_parcels_filename)
     # Open image and give a unique label to each parcel
     image_parcels_gt = cv2.imread(groundtruth_parcels_filename, cv2.IMREAD_GRAYSCALE)
     image_parcels_gt = np.uint8(image_parcels_gt > 128) * 255
@@ -346,15 +346,15 @@ def evaluation_json_file(json_filename: str, **kwargs) -> None:
 
     date = datetime.datetime.now()
 
-    json_dict['creation_date'] = '***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED***.***REMOVED***:02d***REMOVED*** at ***REMOVED***:02d***REMOVED***:***REMOVED***:02d***REMOVED***'\
+    json_dict['creation_date'] = '{:02d}.{:02d}.{:02d} at {:02d}:{:02d}'\
         .format(date.day, date.month, date.year, date.hour, date.minute)
     if results_parcels:
         json_dict['evaluation_parcels'] = vars(results_parcels)
 
     if results_numbers_tuple:
         result_localization, result_recognition = results_numbers_tuple
-        json_dict['evaluation_digits'] = ***REMOVED***'localization': vars(result_localization),
-                                          'recognition': vars(result_recognition)***REMOVED***
+        json_dict['evaluation_digits'] = {'localization': vars(result_localization),
+                                          'recognition': vars(result_recognition)}
 
     with open(json_filename, 'w') as outfile:
         json.dump(json_dict, outfile)

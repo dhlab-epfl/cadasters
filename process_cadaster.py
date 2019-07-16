@@ -1,14 +1,14 @@
-***REMOVED***
-***REMOVED***
+#!/usr/bin/env python
+__author__ = 'solivr'
 
 import argparse
-***REMOVED***
+import os
 import cv2
 import numpy as np
 import tensorflow as tf
 from imageio import imread, imsave
 from skimage.morphology import h_minima, watershed, label
-***REMOVED***
+from tqdm import tqdm
 import pickle
 from src.utils import export_geojson
 from src.evaluation import get_labelled_parcels_matrix, get_labelled_digits_matrix, evaluate, evaluation_json_file
@@ -31,17 +31,17 @@ def process_cadaster(filename_img: str,
                      evaluation=False):
 
     if plot:
-        plotting_dir = os.path.join(output_dir, 'plots_***REMOVED******REMOVED***'.format(os.path.split(filename_img)[1].split('.')[0]))
+        plotting_dir = os.path.join(output_dir, 'plots_{}'.format(os.path.split(filename_img)[1].split('.')[0]))
         os.makedirs(plotting_dir, exist_ok=True)
     if evaluation:
         dirname, filename = os.path.split(filename_img)
         filename = filename.split('.')[0]
-        parcels_groundtruth_filename = os.path.join(dirname, '***REMOVED******REMOVED***_parcels_gt.jpg'.format(filename))
+        parcels_groundtruth_filename = os.path.join(dirname, '{}_parcels_gt.jpg'.format(filename))
         parcel_groundtruth_matrix = get_labelled_parcels_matrix(parcels_groundtruth_filename)
-        numbers_groundtruth_filename = os.path.join(dirname, '***REMOVED******REMOVED***_digits_label_gt.png'.format(filename))
+        numbers_groundtruth_filename = os.path.join(dirname, '{}_digits_label_gt.png'.format(filename))
         numbers_groundtruth_matrix = get_labelled_digits_matrix(numbers_groundtruth_filename)
-        pickle_filename = os.path.join(output_dir, '***REMOVED******REMOVED***_polygons_data.pkl'.format(filename))
-        log_filename = os.path.join(output_dir, '***REMOVED******REMOVED***_evaluation_results.json'.format(filename))
+        pickle_filename = os.path.join(output_dir, '{}_polygons_data.pkl'.format(filename))
+        log_filename = os.path.join(output_dir, '{}_evaluation_results.json'.format(filename))
 
     # Load cadaster image
     cadaster_original_image = imread(filename_img)
@@ -60,8 +60,8 @@ def process_cadaster(filename_img: str,
     tf.reset_default_graph()
     with tf.Session(config=session_config):
         segmentation_model = loader.LoadedModel(segmentation_model_dir)
-        # prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns ***REMOVED***'probs', 'labels'***REMOVED***
-        prediction = segmentation_model.predict_with_tiles(filename_img)  # returns ***REMOVED***'probs', 'labels'***REMOVED***
+        # prediction = segmentation_model.predict_with_tiles(cadaster_image[None, :, :, :])  # returns {'probs', 'labels'}
+        prediction = segmentation_model.predict_with_tiles(filename_img)  # returns {'probs', 'labels'}
 
     # TODO : Try to use hysteresis thresholding
     contours_segmented_probs = prediction['probs'][0, :, :, 1]  # second class is contours
@@ -97,7 +97,7 @@ def process_cadaster(filename_img: str,
             polygons_list.append(current_polygon)
 
     # Export GEOJSON file
-    export_filename = os.path.join(output_dir, 'parcels_***REMOVED******REMOVED***.geojson'.format(os.path.split(filename)))
+    export_filename = os.path.join(output_dir, 'parcels_{}.geojson'.format(os.path.split(filename)))
     export_geojson(polygons_list, export_filename, filename_img)
 
     # EVALUATION
@@ -116,7 +116,7 @@ def process_cadaster(filename_img: str,
     print('Cadaster image processed!')
 
 
-***REMOVED***
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Cadaster segmentation process')
     parser.add_argument('-im', '--cadaster_img', help="Filename of the cadaster image", type=str, nargs='+')
     parser.add_argument('-out', '--output_dir', help='Output directory for results and plots.', type=str)

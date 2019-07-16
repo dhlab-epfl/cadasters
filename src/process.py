@@ -1,9 +1,9 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
 import cv2
-***REMOVED***
+import os
 from typing import Tuple
 from math import sqrt
 from .utils import MyPolygon
@@ -12,11 +12,11 @@ from imageio import imsave
 
 
 def binarize_text_probs(text_prob_map: np.array):
-***REMOVED***"
+    """
 
     :param text_prob_map:
     :return:
-***REMOVED***"
+    """
     # Binarize probs with Otsu's threshold
     blurred = cv2.GaussianBlur((text_prob_map * 255).astype('uint8'), (3, 3), 0)
     _, binary_text_segmented = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -27,13 +27,13 @@ def binarize_text_probs(text_prob_map: np.array):
 
 
 def crop_with_margin(full_img: np.array, crop_coords: np.array, margin: int=0, return_coords: bool=False):
-***REMOVED***"
+    """
 
     :param box_coords: (x, y, w, h)
     :param full_img:
     :param margin:
     :return:
-***REMOVED***"
+    """
 
     x, y, w, h = crop_coords
     # Update coordinated with margin
@@ -68,12 +68,12 @@ def get_rotation_matrix(image_shape: tuple, angle: float) -> (np.array, np.array
 
 def rotate_image_and_crop(image: np.array, rotation_matrix: np.array, padding_dimensions: tuple,
                           contour_blob: np.array, border_value: int=0):
-***REMOVED***"
+    """
     Rotates image with the specified angle
     :param image: image to be rotated
     :param angle: angle of rotation. if angle < 0 : clockwise rotation, if angle > 0 : counter-clockwise rotation
     :return: rotated image and rotation matrix
-***REMOVED***"
+    """
     # Inspired by : https://stackoverflow.com/questions/22041699/rotate-an-image-without-cropping-in-opencv-in-c/22042434#22042434
     x_pad, y_pad = padding_dimensions
     image_padded = cv2.copyMakeBorder(image, y_pad, y_pad, x_pad, x_pad,
@@ -96,11 +96,11 @@ def rotate_image_and_crop(image: np.array, rotation_matrix: np.array, padding_di
 
 
 def find_orientation_blob(blob_contour: np.array) -> (Tuple, np.array, float):
-***REMOVED***"
+    """
     Uses PCA to find the orientation of blob
     :param blob_contour: contour of blob
     :return: center point, eignevectors, angle of orientation (in degrees)
-***REMOVED***"
+    """
 
     # # Find orientation with PCA
     # blob_contours = blob_contours.reshape(blob_contours.shape[0], 2)  # must be of size nx2
@@ -129,7 +129,7 @@ def process_watershed_parcel(mask_parcel: np.array,
                              cadaster_imgae_gray: np.array,
                              transcription_model,
                              plotting_dir: str=None):
-***REMOVED***"
+    """
 
     :param mask_parcel:
     :param text_segmented_probs:
@@ -137,7 +137,7 @@ def process_watershed_parcel(mask_parcel: np.array,
     :param transcription_model:
     :param plotting_dir:
     :return:
-***REMOVED***"
+    """
     # PARCEL EXTRACTION
     _, contours, _ = cv2.findContours(mask_parcel.astype('uint8').copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
@@ -179,10 +179,10 @@ def process_watershed_parcel(mask_parcel: np.array,
         parcel_number_probs = (255 * crop_with_margin(text_segmented_probs, coordinates_crop_parcel, margin=0)
                                * crop_with_margin(mask_parcel, coordinates_crop_parcel, margin=0)).astype('uint8')
 
-        imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_number_binarization.jpg'.format(current_polygon.uuid)),
+        imsave(os.path.join(plotting_dir, '{}_number_binarization.jpg'.format(current_polygon.uuid)),
                binary_parcel_number)
-        imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_parcel_blob.jpg'.format(current_polygon.uuid)), parcel_number_blob)
-        imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_text_probs.jpg'.format(current_polygon.uuid)), parcel_number_probs)
+        imsave(os.path.join(plotting_dir, '{}_parcel_blob.jpg'.format(current_polygon.uuid)), parcel_number_blob)
+        imsave(os.path.join(plotting_dir, '{}_text_probs.jpg'.format(current_polygon.uuid)), parcel_number_probs)
 
     number_predicted_list = list()
     scores_list = list()
@@ -213,9 +213,9 @@ def process_watershed_parcel(mask_parcel: np.array,
             continue
 
         if plotting_dir is not None:
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_crop***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+            imsave(os.path.join(plotting_dir, '{}_label_crop{}.jpg'.format(current_polygon.uuid, i)),
                    image_parcel_number)
-            imsave(os.path.join(plotting_dir, '***REMOVED******REMOVED***_label_rotated***REMOVED******REMOVED***.jpg'.format(current_polygon.uuid, i)),
+            imsave(os.path.join(plotting_dir, '{}_label_rotated{}.jpg'.format(current_polygon.uuid, i)),
                    grayscale_number_crop)
 
         # TRANSCRIPTION

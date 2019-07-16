@@ -1,10 +1,10 @@
-***REMOVED***
-***REMOVED***
+#!/usr/bin/env python
+__author__ = 'solivr'
 
 import json
-***REMOVED***
-***REMOVED***
-***REMOVED***
+import os
+from glob import glob
+from tqdm import tqdm
 import geojson
 from osgeo import ogr
 import click
@@ -43,13 +43,13 @@ def filter_geojson(files_to_process):
             json.dump(data, f)
 
         # full_dir, basename = os.path.split(output_filtered_filename)
-        # output_converted_filename = os.path.join(full_dir, '***REMOVED******REMOVED***_wgs84.geojson'.format(basename.split('.')[0]))
+        # output_converted_filename = os.path.join(full_dir, '{}_wgs84.geojson'.format(basename.split('.')[0]))
         # # Projection system conversion
-        # os.system("ogr2ogr -f GeoJSON -s_srs ***REMOVED******REMOVED*** -t_srs ***REMOVED******REMOVED*** ***REMOVED******REMOVED*** ***REMOVED******REMOVED***"
+        # os.system("ogr2ogr -f GeoJSON -s_srs {} -t_srs {} {} {}"
         #       .format(source_projection, target_projection, output_converted_filename, output_filtered_filename))
 
 
-***REMOVED***
+if __name__ == '__main__':
     filter_geojson()
 
 
@@ -64,13 +64,13 @@ def convert_multipolygon_to_polygon(files_to_process):
 
         for feat in json_cnt['features']:
             new_feat = feat.copy()
-            new_feat['geometry'] = ***REMOVED***"coordinates": [], "type": "Polygon"***REMOVED***
+            new_feat['geometry'] = {"coordinates": [], "type": "Polygon"}
             multiploygon = ogr.CreateGeometryFromJson(json.dumps(feat['geometry']))
             for polygon in multiploygon:
                 new_feat['geometry'] = json.loads(polygon.ExportToJson())
             export_json['features'].append(new_feat)
 
         dirname, basename = os.path.split(filename)
-        export_filename = os.path.join(dirname, '***REMOVED******REMOVED***_filt.***REMOVED******REMOVED***'.format(*basename.split('.')))
+        export_filename = os.path.join(dirname, '{}_filt.{}'.format(*basename.split('.')))
         with open(export_filename, 'w') as f:
             geojson.dump(export_json, f)

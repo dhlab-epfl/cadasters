@@ -1,4 +1,4 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
@@ -7,7 +7,7 @@ import pandas as pd
 import geopandas as gpd
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
-***REMOVED***
+from tqdm import tqdm
 
 
 def iou_get_precision(dataframe_correspondencies: Union[pd.DataFrame, gpd.GeoDataFrame],
@@ -72,7 +72,7 @@ def outlier_get_precision(dataframe_correspondencies: Union[pd.DataFrame, gpd.Ge
 
     correct_in_insiders = len(not_outlier_transcription[
                                   not_outlier_transcription.manual_ID == not_outlier_transcription.best_transcription
-                               ***REMOVED***)
+                                  ])
     print('Not outliers: ', len(not_outlier_transcription))
     if return_number:
         return correct_in_insiders / len(not_outlier_transcription), correct_in_insiders
@@ -102,7 +102,7 @@ def transcriptions_without_outliers_get_precision(dataframe_correspondencies: Un
 
     correct_trans = len(not_outlier_transcription[
                             not_outlier_transcription.manual_ID == not_outlier_transcription.best_transcription
-                         ***REMOVED***)
+                            ])
 
     if return_number:
         return correct_trans / len(not_outlier_transcription), correct_trans
@@ -129,7 +129,7 @@ def transcriptions_without_outliers_get_recall(dataframe_correspondencies: Union
 def get_correspondencies(dataframe_shapes_automatically_produced: Union[pd.DataFrame, gpd.GeoDataFrame],
                          dataframe_shapes_mannually_produced: Union[pd.DataFrame, gpd.GeoDataFrame],
                          n_neighbors: int=3) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
-***REMOVED***"
+    """
 
 
     :param dataframe_shapes_automatically_produced: must contain columns `uuid`, `best_transcription`, `geometry`,
@@ -138,7 +138,7 @@ def get_correspondencies(dataframe_shapes_automatically_produced: Union[pd.DataF
     :param n_neighbors: number of neighbors to consider
     :return: a dataframe of the sime size as `dataframe_shapes_automatically_produced` with the corresponding shapes
     of the `dataframe_shapes_mannually_produced`
-***REMOVED***"
+    """
 
     # compute centroids for manually annotated data
     dataframe_shapes_mannually_produced['centroid'] = dataframe_shapes_mannually_produced.geometry.apply(lambda s: s.centroid)

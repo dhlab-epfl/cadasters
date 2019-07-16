@@ -1,4 +1,4 @@
-***REMOVED***
+#!/usr/bin/env python
 __author__ = "solivr"
 __license__ = "GPL"
 
@@ -44,7 +44,7 @@ def evaluate(auto_geojson_files: List[str],
     max_area = 15000.
     gdf_global_filtered = filter_by_area(gdf_global, min_area=min_area, max_area=max_area)
 
-    gdf_global_filtered.crs = ***REMOVED***'init': 'epsg:3004'***REMOVED***
+    gdf_global_filtered.crs = {'init': 'epsg:3004'}
 
     print("Total number of filtered geometries: ", len(gdf_global_filtered))
 
@@ -76,7 +76,7 @@ def evaluate(auto_geojson_files: List[str],
     geometries_recall = iou_get_recall(gdf_correspondances, gdf_manually_annotated,
                                        iou_threshold=iou_threshold, return_number=False)
 
-    print('-- Geometries evaluation - P: ***REMOVED******REMOVED***, R: ***REMOVED******REMOVED***. ***REMOVED******REMOVED***'.format(geometries_precision, geometries_recall,
+    print('-- Geometries evaluation - P: {}, R: {}. {}'.format(geometries_precision, geometries_recall,
                                                                correct_geometries_count))
 
     # -- Evaluation transcriptions
@@ -84,7 +84,7 @@ def evaluate(auto_geojson_files: List[str],
                                                                                          return_number=True)
     transcriptions_recall = transcription_get_recall(gdf_correspondances, gdf_manually_annotated, return_number=False)
 
-    print('-- Transcriptions evaluation - P: ***REMOVED******REMOVED***, R: ***REMOVED******REMOVED***. ***REMOVED******REMOVED***'.format(transcriptions_precision, transcriptions_recall,
+    print('-- Transcriptions evaluation - P: {}, R: {}. {}'.format(transcriptions_precision, transcriptions_recall,
                                                                    correct_transcriptions_count))
 
     # # -- Evaluation transcriptions after outlier detection
@@ -96,9 +96,9 @@ def evaluate(auto_geojson_files: List[str],
         print("Total number of filtered geometries: ", len(gdf_global_filtered), file=text_file)
         print("Total annotated geometries: ", len(gdf_manually_annotated), file=text_file)
 
-        print('-- Geometries evaluation - P: ***REMOVED******REMOVED***, R: ***REMOVED******REMOVED***. ***REMOVED******REMOVED***'.format(geometries_precision, geometries_recall,
+        print('-- Geometries evaluation - P: {}, R: {}. {}'.format(geometries_precision, geometries_recall,
                                                                    correct_geometries_count), file=text_file)
-        print('-- Transcriptions evaluation - P: ***REMOVED******REMOVED***, R: ***REMOVED******REMOVED***. ***REMOVED******REMOVED***'.format(transcriptions_precision, transcriptions_recall,
+        print('-- Transcriptions evaluation - P: {}, R: {}. {}'.format(transcriptions_precision, transcriptions_recall,
                                                                        correct_transcriptions_count), file=text_file)
 
 

@@ -1,5 +1,5 @@
-***REMOVED***
-***REMOVED***
+#!/usr/bin/env python
+__author__ = 'solivr'
 
 import uuid
 import cv2
@@ -13,11 +13,11 @@ import geojson
 class MyPolygon:
 
     def __init__(self, contours: np.array):
-    ***REMOVED***"
+        """
         :param contours : list of contours. [ [[x1,y1], [x2,y2], ...],
                                               [[x1.y1], [x2,y2], ...],
                                               ... ]
-    ***REMOVED***"
+        """
         # TODO change contours to shapely Polygon object
         self.contours = contours  # shape [(N_POINTS, 1, 2)]
         self.uuid = self._generate_uuid()
@@ -44,12 +44,12 @@ class MyPolygon:
             return ''
 
     def approximate_coordinates(self, epsilon=1, inner=False):
-    ***REMOVED***"
+        """
 
         :param epsilon:
         :param inner: return also inner contours (if there is a hole)
         :return:
-    ***REMOVED***"
+        """
         if inner:
             approx_contours = list()
             for c in self.contours:
@@ -60,7 +60,7 @@ class MyPolygon:
 
     @staticmethod
     def georeferenecing(contours: np.array, geotransform: tuple) -> np.array:
-    ***REMOVED***"
+        """
         Georeferencing for geojson (will have no effect if no geographic metadata is found)
         From : http://www.gdal.org/classGDALDataset.html#a5101119705f5fa2bc1344ab26f66fd1d
              GeoTransform[0] / * top left x
@@ -75,7 +75,7 @@ class MyPolygon:
         :param contours : list of contours. [ [[x1,y1], [x2,y2], ...],
                                               [[x1.y1], [x2,y2], ...],
                                               ... ]
-    ***REMOVED***"
+        """
         georeferenced_contours = list()
         for coordinates in contours:
             georeferenced_coordinates = [(geotransform[0] + pt[0] * geotransform[1] + pt[1] * geotransform[2],
@@ -95,23 +95,23 @@ class GeoProjection:
 
     def __init__(self, projection_name: str=None):
         if projection_name == 'Monte Mario':
-            self.crs = ***REMOVED***"type": "name",
-                        "properties": ***REMOVED***
+            self.crs = {"type": "name",
+                        "properties": {
                             "name": "urn:ogc:def:crs:EPSG::3004"
-                    ***REMOVED***
-                    ***REMOVED***
+                        }
+                        }
         elif projection_name == 'WGS84':
-            self.crs = ***REMOVED***"type": "name",
-                        "properties": ***REMOVED***
+            self.crs = {"type": "name",
+                        "properties": {
                             "name": "urn:ogc:def:crs:EPSG::4326"
-                    ***REMOVED***
-                    ***REMOVED***
+                        }
+                        }
         elif projection_name is None:
-            self.crs = ***REMOVED***"type": "name",
-                        "properties": ***REMOVED***
+            self.crs = {"type": "name",
+                        "properties": {
                             "name": "urn:ogc:def:crs:EPSG::3004"
-                    ***REMOVED***
-                    ***REMOVED***
+                        }
+                        }
         else:
             raise NotImplementedError
 
@@ -121,13 +121,13 @@ class GeoProjection:
         try:
             toks = re.search('AUTHORITY\[\".*,.*\"\],', ds.GetProjectionRef()) \
                        .group()[len('AUTHORITY[\"'):-len('\"],')].split('\"')
-            crs = ***REMOVED***"type": "name",
-                   "properties": ***REMOVED***
-                       "name": "urn:ogc:def:crs:***REMOVED******REMOVED***::***REMOVED******REMOVED***".format(toks[0], toks[2])
-               ***REMOVED***
-               ***REMOVED***
+            crs = {"type": "name",
+                   "properties": {
+                       "name": "urn:ogc:def:crs:{}::{}".format(toks[0], toks[2])
+                   }
+                   }
         except AttributeError:
-            print('No CRS found in file ***REMOVED******REMOVED***'.format(filename_gtiff))
+            print('No CRS found in file {}'.format(filename_gtiff))
             crs = None
         return crs
 
@@ -155,12 +155,12 @@ def export_geojson(list_polygon_objects: List[MyPolygon], export_filename: str, 
         [geojson.Feature(geometry=geojson.Polygon(MyPolygon.georeferenecing(polygon.approximate_coordinates(epsilon=2,
                                                                                                             inner=True),
                                                                             geotransform=geotransform)),
-                         properties=***REMOVED***'uuid': polygon.uuid,
+                         properties={'uuid': polygon.uuid,
                                      'transcription': str(polygon.transcription),
                                      'score': str(polygon.score),
                                      'best_transcription' : str(polygon.best_transcription)
-                                 ***REMOVED***) for polygon in list_polygon_objects],
-                                     # 'score': [str(score) for score in polygon.score]***REMOVED***) for polygon in list_polygon_objects],
+                                     }) for polygon in list_polygon_objects],
+                                     # 'score': [str(score) for score in polygon.score]}) for polygon in list_polygon_objects],
         crs=projection.crs)
 
     # Save file
