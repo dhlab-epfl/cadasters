@@ -1,5 +1,5 @@
 # Cadasters segmentation
-Demo for venitian cadaster segmentation
+Demo for venitian cadaster segmentation. This work was presented at the Digital Humanities 2017 conference in Montréal, [_Machine Vision algorithms on Cadaster Plans_](https://infoscience.epfl.ch/record/254960/files/final_abstract.pdf).
 
 This code is a demo for the segmentation of the venitian cadaster. It is a work in progress and is not optimized. Comments and suggestions are welcome.
 
@@ -34,7 +34,7 @@ __ridge image__ : shows the result of the processing of ridge detection image, t
 __merged superpixels__ : shows the result of the merging process (better over-segmented than under-segmented, some corrections are applied later)
 
 #### CRNN
-The code for training the CRNN used to transcribe the labels can be found at https://github.com/solivr/tf-crnn
+The code for training the CRNN used to transcribe the labels can be found at [github.com/solivr/tf-crnn](https://github.com/solivr/tf-crnn)
 
 ### Requirement
 * Python 3.5
