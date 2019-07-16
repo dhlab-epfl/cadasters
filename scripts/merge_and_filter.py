@@ -32,5 +32,5 @@ def merge_and_filter_geojson(geojson_files: List[str],
     max_area = 15000.
     gdf_global_filtered = filter_by_area(gdf_global, min_area=min_area, max_area=max_area)
 
-    gdf_global_filtered.crs = ***REMOVED***'init': 'epsg:3004'***REMOVED***
+    gdf_global_filtered.crs = ***REMOVED***'init': 'epsg:3004'***REMOVED***  # epsg:3004 : Monte Mario
     gdf_global_filtered.to_file(exported_merged_geojson_filename, driver='GeoJSON', encoding='utf8')
