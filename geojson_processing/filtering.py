@@ -4,10 +4,11 @@ __license__ = "GPL"
 
 from typing import List, Dict, Union
 from shapely.geometry import shape
+import shapely
 import geojson
 import json
 ***REMOVED***
-import click
+import re
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -110,3 +111,36 @@ def remove_empty_transcripts(geodataframe: gpd.GeoDataFrame) -> gpd.GeoDataFrame
     gdf_with_numbers = geodataframe[geodataframe.best_transcription != '']
 
     return gdf_with_numbers
+
+
+def _float2int(unit):
+    if isinstance(unit, float) and not pd.isnull(unit):
+        return int(unit)
+    else:
+        return unit
+
+
+def clean_manually_annotated_parcels(geodataframe_annotated: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    labels_to_keep = ['WKT', 'best_trans', 'uuid', 'ID']
+
+    geodataframe_annotated = geodataframe_annotated[labels_to_keep]
+
+    # Create a geometry from the WKT
+    geodataframe_annotated['geometry'] = geodataframe_annotated.WKT.apply(lambda s: shapely.wkt.loads(s)[0])
+    geodataframe_annotated = geodataframe_annotated.drop(['WKT'], axis=1)
+
+    # Change float into int
+    geodataframe_annotated.ID = geodataframe_annotated.ID.apply(lambda t: _float2int(t))
+
+    # Remove non digits chars and convert transcription to float type
+    geodataframe_annotated.ID = geodataframe_annotated.ID.apply(lambda t: re.sub(r"\D", "", str(t)))
+    geodataframe_annotated.ID.replace('', np.nan, inplace=True)
+    # geodataframe_annotated.ID = geodataframe_annotated.ID.apply(lambda t: float(t) if t != "" else np.nan)
+
+    # Find invalid shapes in groundtruth and remove them also
+    invalid_polygons = geodataframe_annotated[~geodataframe_annotated.geometry.apply(lambda s: s.is_valid)]
+    print("Removed ***REMOVED******REMOVED*** invalid polygons.".format(len(invalid_polygons)))
+
+    gdf_corrected = geodataframe_annotated.drop(index=invalid_polygons.index, axis=0)
+
+    return gdf_corrected
