@@ -1,7 +1,7 @@
 # Napoleonic Venetian cadaster processing
 This work was presented at the Digital Humanities 2019 conference in Utrecht, [_A deep learning approach to Cadastral Computing_](https://infoscience.epfl.ch/record/268282/files/dh2019-cadaster-computing.pdf).
 
-To see the old version of the work presented in 2017 ([_Machine vision algorithms on cadaster plans_](https://infoscience.epfl.ch/record/254960/files/final_abstract.pdf)), go to [this branch](TODO)
+To see the old version of the work presented in 2017 ([_Machine vision algorithms on cadaster plans_](https://infoscience.epfl.ch/record/254960/files/final_abstract.pdf)), go to [this branch](https://github.com/dhlab-epfl/cadasters/tree/v0.1.0)
 
 ### Segmentation (dhSegment)
 The segmentation uses a fully convolutional neural network, dhSegment, which is available at [github.com/dhlab-epfl/dhSegment](https://github.com/dhlab-epfl/dhSegment)
